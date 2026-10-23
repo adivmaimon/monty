@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.vsix
+.DS_Store
+docs/preview/
+menubar/MontyApp/.build/
+menubar/MontyApp/Monty.app/
+vscode/core/
+
+# Private to the maintainer: plans, workflow skills and agent instructions.
+/.claude/
+/CLAUDE.md

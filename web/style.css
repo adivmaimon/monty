@@ -1,0 +1,259 @@
+:root{--bg:#14161b;--panel:#1b1e25;--card:#23262f;--line:#2d313b;--text:#e4e6eb;--muted:#9aa1ad;--soft:#c9ced6;--accent:#e8a26a;--accent-soft:rgba(232,162,106,.16);--green:#56d364;--green-soft:rgba(63,185,80,.16);--blue:#6cb6ff;--red:#ff7b72;--orange:#f0883e}
+/* Inside VS Code, follow the editor's theme colours where they exist. */
+body.vscode{--bg:var(--vscode-sideBar-background,#14161b);--panel:var(--vscode-editorWidget-background,#1b1e25);--card:var(--vscode-input-background,#23262f);--line:var(--vscode-widget-border,var(--vscode-panel-border,#2d313b));--text:var(--vscode-foreground,#e4e6eb);--muted:var(--vscode-descriptionForeground,#9aa1ad);--soft:var(--vscode-foreground,#c9ced6)}
+body.vscode.doc{--bg:var(--vscode-editor-background,#14161b)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:13px/1.45 var(--vscode-font-family,Inter,system-ui,-apple-system,sans-serif)}
+a{color:var(--accent)}
+button{font:inherit;color:inherit}
+.mono{font-family:var(--vscode-editor-font-family,"JetBrains Mono",ui-monospace,Menlo,monospace)}
+.muted{color:var(--muted)}
+.spacer{flex:1}
+.clamp1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.clamp2,.clamp3{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden}
+.clamp2{-webkit-line-clamp:2}.clamp3{-webkit-line-clamp:3}
+.expandable{cursor:pointer}
+.expanded{white-space:normal;-webkit-line-clamp:unset;display:block}
+.top{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.top h1{font-size:14px;margin:0}
+body.vscode .top{display:none}
+.mark{width:20px;height:20px;fill:none;stroke:var(--accent);stroke-width:2;stroke-linecap:round}
+.pill{padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600;background:var(--card);color:var(--soft)}
+.pill.ok{background:var(--green-soft);color:var(--green)}
+.filter{font-size:12px;color:var(--muted)}
+select{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:3px 6px;font:inherit}
+.wrap{max-width:980px;margin:0 auto;padding:12px 14px 32px;display:flex;flex-direction:column;gap:12px}
+h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs:empty{display:none}
+.tab{display:flex;align-items:center;gap:6px;max-width:100%;padding:5px 10px 5px 6px;border-radius:999px;border:1px solid var(--line);background:var(--panel);cursor:pointer;min-height:30px}
+.tab[aria-current=true]{border-color:var(--accent)}
+.tag{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:600;white-space:nowrap}
+.st-working{background:var(--accent-soft);color:#f3c39b}.st-needs_input{background:rgba(240,136,62,.2);color:#ffb77c}.st-your_turn{background:rgba(108,182,255,.15);color:var(--blue)}.st-done{background:var(--green-soft);color:var(--green)}.st-idle{background:var(--card);color:var(--muted)}
+.head{display:flex;align-items:center;gap:8px;min-width:0}
+.title{font-size:16px;font-weight:600;line-height:1.35;margin:8px 0 2px}
+.bar{height:8px;border-radius:4px;background:#2a2e37;overflow:hidden}.bar>div{height:100%;background:var(--accent);transition:width .5s}
+.bar.thin{height:6px;border-radius:3px}.bar.blue>div{background:var(--blue)}.bar.amber>div{background:var(--accent)}.bar.red>div{background:var(--red)}
+.prog{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;color:var(--soft);margin:12px 0 6px}
+.prog a{color:inherit;text-decoration:none;min-width:0;margin-right:8px}.prog a:hover{text-decoration:underline}
+.todos{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.todos li{display:flex;gap:8px;align-items:center;min-width:0}
+.dot{flex:0 0 14px;height:14px;border-radius:50%;border:1.5px solid #4f5562;display:inline-flex;align-items:center;justify-content:center;font-size:9px}
+.todos .completed{color:var(--muted)}.todos .completed .t{text-decoration:line-through}.todos .completed .dot{background:#3fb950;border-color:#3fb950;color:#0d1117}
+.todos .in_progress{font-weight:600}.todos .in_progress .dot{border:2px solid var(--accent)}
+.now{display:flex;flex-direction:column;gap:8px;min-width:0}
+.now .nk{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.08em;font-weight:700;min-width:0}
+.now .nk .d{flex:0 0 8px;width:8px;height:8px;border-radius:50%}
+.now .nk time{font-size:11px;color:var(--muted);letter-spacing:0;font-weight:400}
+.now .nt{font-size:14px;font-weight:500;line-height:1.4}
+.now.past .k{color:var(--muted)}
+.now .nf{display:flex;align-items:center;gap:8px;min-width:0}
+.chip{font-size:12px;padding:3px 8px;border-radius:6px;background:var(--line);color:var(--soft);border:0;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.chip:hover{color:var(--text)}
+.rows{display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:10px;min-height:26px;min-width:0;font-size:12.5px}
+.row time{flex:0 0 auto;color:var(--muted);font-size:11px}
+.row .d{flex:0 0 6px;height:6px;border-radius:50%}
+.row .x{flex:1}
+.row.fail .x{color:var(--red)}
+a.row,button.row{color:var(--soft);text-decoration:none;background:none;border:0;padding:0 4px;margin:0 -4px;border-radius:5px;text-align:left;cursor:pointer;width:calc(100% + 8px)}
+a.row:hover,button.row:hover{background:var(--card);color:var(--text)}
+.more{background:none;border:0;color:var(--accent);padding:4px 0;cursor:pointer;font-size:12px;text-align:left}
+.plus{color:var(--green);font-size:11px;white-space:nowrap}.minus{color:var(--red);font-size:11px;white-space:nowrap}
+.k-read{background:var(--blue)}.k-edit,.k-write{background:var(--accent)}.k-run,.k-test{background:#d2a8ff}.k-search,.k-web{background:#8b949e}.k-ask{background:var(--orange)}.k-agent{background:#79c0ff}.k-prompt{background:#e4e6eb}.k-tool,.k-plan{background:#8b949e}
+.cols{display:flex;flex-wrap:wrap;gap:12px}.cols>*{flex:1 1 280px;min-width:0}
+.ctx{display:flex;justify-content:space-between;font-size:12px;color:var(--soft);margin-bottom:5px}
+.empty{padding:16px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:10px;font-size:12.5px}
+details>summary{cursor:pointer;list-style:none}
+details>summary::-webkit-details-marker{display:none}
+.group{margin-top:4px}
+.group>summary{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:6px 0}
+
+.plan{display:block;padding:7px 8px;margin:0 -8px;border-radius:8px;color:var(--text);text-decoration:none}
+.plan:hover{background:var(--card)}
+.plan .l1{display:flex;gap:8px;align-items:baseline;min-width:0}
+.plan .n{flex:1;font-weight:500}
+.plan .lab{font-size:11px;color:var(--muted);white-space:nowrap}
+.plan .repo{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.segs{display:flex;gap:3px;margin-top:5px}.segs span{flex:1;height:5px;border-radius:2px;background:#343843}.segs .on{background:#3fb950}.segs .cur{background:var(--accent)}
+.prog+.segs{margin-top:0}.prog+.segs span{height:8px;border-radius:3px}
+.segs.mini{flex:0 0 44px;margin:0}.segs.mini span{height:5px}
+.reader{position:fixed;inset:0;background:var(--bg);z-index:10;display:flex;flex-direction:column}
+.reader[hidden]{display:none}
+.readerbar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line);min-width:0}
+body.vscode #back{display:none}
+.btn{display:inline-flex;align-items:center;min-height:30px;padding:0 12px;border-radius:7px;background:var(--card);border:1px solid var(--line);color:var(--text);text-decoration:none}
+.seg{display:inline-flex;padding:2px;border-radius:7px;background:var(--card);border:1px solid var(--line);flex:0 0 auto}
+.seg button{min-height:26px;padding:0 10px;border:0;border-radius:5px;background:transparent;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--line)}
+/* The scroll container is the full width, so the scrollbar sits at the window edge; padding centres the content. */
+.readerbody{flex:1;overflow:auto;display:flex;flex-wrap:wrap;gap:16px 28px;padding:20px max(18px,calc((100% - 1180px) / 2)) 48px;width:100%;align-content:flex-start;align-items:flex-start}
+#doc{flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:16px}
+#docSide{flex:1 1 260px;min-width:0;display:flex;flex-direction:column;gap:16px}
+.hero{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:12px}
+.hero .eyebrow{font-size:11px;letter-spacing:.1em;font-weight:700;color:var(--accent);text-transform:uppercase}
+.hero h1{margin:0;font-size:28px;line-height:1.2;font-weight:700}
+.hero .goal{color:var(--soft);font-size:15px;line-height:1.55;margin:0;max-width:62ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0}.chips span{font-size:12px;padding:4px 10px;border-radius:999px;background:var(--card);color:var(--soft)}
+.sec{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.sec>summary{min-height:56px;padding:14px 20px;font-size:17px;font-weight:600;display:flex;align-items:center;gap:12px}
+.sec>summary .hint{font-size:12px;color:var(--muted);font-weight:400;margin-left:auto}
+.sec .in{padding:0 20px 20px;font-size:14.5px;line-height:1.6;color:var(--soft)}
+.in h3,.in h4{color:var(--text);margin:16px 0 6px;font-size:14.5px}
+.in p{margin:6px 0}
+.in code{font-family:var(--vscode-editor-font-family,"JetBrains Mono",ui-monospace,Menlo,monospace);font-size:12px;background:var(--card);padding:1px 4px;border-radius:4px}
+.in pre{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto}
+.in pre code{background:none;padding:0}
+.in table{border-collapse:collapse;width:100%;font-size:12.5px;display:block;overflow-x:auto}
+.in th,.in td{border:1px solid var(--line);padding:5px 7px;text-align:left;vertical-align:top}
+.in th{background:var(--card);color:var(--text)}
+.in ul,.in ol{padding-left:20px;margin:6px 0}
+.in li{margin:2px 0}
+.in a.ref{text-decoration:none}.in a.ref code{color:var(--accent)}.in a.ref:hover code{text-decoration:underline}
+.in .cb{list-style:none;margin-left:-18px}
+.in strong{color:var(--text)}
+.phaselist{display:flex;flex-direction:column;gap:2px}
+.phaselist div{display:flex;gap:10px;align-items:center;font-size:13px;min-height:30px;min-width:0}
+.raw{white-space:pre-wrap;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;font-family:var(--vscode-editor-font-family,"JetBrains Mono",ui-monospace,Menlo,monospace);font-size:12.5px}
+.side{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.side a{display:block;padding:6px 0;color:var(--soft);text-decoration:none;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side a:hover{color:var(--text)}
+/* summary (sidebar) */
+.sum .title{font-size:14px}
+.sum .reason{font-size:12.5px;color:var(--soft);margin-top:8px}
+.btn.wide{width:100%;justify-content:center;cursor:pointer;font-weight:600}
+a.more{display:inline-block;text-decoration:none}
+body.mode-summary .wrap{padding:8px 10px 20px;gap:8px}
+/* full view: plan groups as columns */
+.board{display:flex;flex-wrap:wrap;gap:4px 24px}.board>.group{flex:1 1 240px;min-width:0}
+body.mode-full .wrap{max-width:1240px}
+/* one spacing rhythm: every stack of cards uses the page gap */
+#detail,#plans,#stats,#extra,#footer{display:flex;flex-direction:column;gap:12px}
+#detail:empty,#plans:empty,#stats:empty,#extra:empty,#footer:empty{display:none}
+body.mode-summary #detail,body.mode-summary #plans,body.mode-summary #extra,body.mode-summary #footer{gap:8px}
+.box h2{margin-bottom:10px}
+.sum .title.expanded,.sum .reason.expanded{-webkit-line-clamp:unset;display:block}
+.expandable:not(.expanded):hover{color:var(--text)}
+
+/* VS Code webviews add 20px side padding to body; the wrap sets its own so cards line up with the view title */
+body.vscode{padding:0}
+body.vscode.mode-summary .wrap{padding:6px 16px 20px}
+.phaselist .cur{font-weight:600}
+
+/* Chevrons on everything that collapses: down when closed, up when open */
+.sec>summary::after,.group>summary::after{content:"";flex:0 0 auto;width:7px;height:7px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:translateY(-2px) rotate(45deg);transition:transform .15s}
+.sec[open]>summary::after,.group[open]>summary::after{transform:translateY(2px) rotate(-135deg)}
+.group>summary{align-items:center}
+details>summary:hover::after{border-color:var(--text)}
+
+/* plan view: status card, docked on scroll */
+#docTop{flex:1 1 100%;position:sticky;top:-20px;z-index:4} /* -20px cancels the page's top padding so it docks flush */
+#docTop:empty{display:none}
+.statuscard{display:flex;align-items:center;gap:14px;min-height:52px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 20px;transition:margin .25s ease,padding .25s ease,border-radius .25s ease,box-shadow .25s ease}
+.statuscard .sb-bar{flex:1 1 auto;max-width:520px;margin-left:auto}
+.statuscard .sb-bar .segs{margin-top:0}
+.statuscard .sb-bar .segs span{height:8px;border-radius:3px}
+.statuscard .sb-title{max-width:0;opacity:0;font-weight:600;font-size:13.5px;transition:max-width .3s ease,opacity .2s ease}
+
+#docTop.stuck .statuscard{margin:0 calc(-1 * var(--padpx,18px));padding:10px var(--padpx,18px);border-radius:0;border-width:0 0 1px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+#docTop.stuck .sb-title{max-width:50%;opacity:1}
+.sec{scroll-margin-top:72px}
+
+/* follow mode toggle (VS Code only) */
+.switch{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--soft);cursor:pointer;white-space:nowrap;min-height:24px}
+.switch input{accent-color:var(--accent);margin:0;width:14px;height:14px}
+.followcard .switch{font-size:13px;color:var(--text);font-weight:500}
+.followcard p{margin:4px 0 0 20px;font-size:12px;line-height:1.45}
+
+/* mermaid diagrams in the plan view */
+.in .mermaid{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:10px 0;overflow-x:auto;display:flex;justify-content:center}
+.in .mermaid svg{max-width:100%;height:auto}
+.in pre.mermaid-failed{border-color:rgba(255,123,114,.4)}
+
+/* AI tool setup: the sidebar's short card and the details tab's full one */
+#setup:empty,#setupFull:empty{display:none}
+.toolchips{margin:0}
+.toolchips span{font-size:11px;padding:2px 8px}
+.setupcard .toolchips{margin-bottom:8px}
+.row.skill .kind{font-size:11px;white-space:nowrap}
+.row.skill.using .x,.row.skill.using .name{color:var(--accent);font-weight:600}
+.setupfull>summary{display:flex;align-items:center;gap:10px;min-height:24px}
+.setupfull>summary h2{margin:0}
+.setupfull>summary .toolchips{margin-left:auto}
+.setupfull>summary::after,.cfg>summary::after{content:"";flex:0 0 auto;width:7px;height:7px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:translateY(-2px) rotate(45deg);transition:transform .15s}
+.setupfull[open]>summary::after,.cfg[open]>summary::after{transform:translateY(2px) rotate(-135deg)}
+.setupbody{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+/* each section: a card that opens, summary line says what is inside */
+.cfg{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.cfg>summary{display:flex;align-items:center;gap:12px;min-height:44px;padding:10px 14px}
+.cfg>summary:hover{background:rgba(255,255,255,.03)}
+.cfg-t{font-weight:600;font-size:13.5px;flex:0 0 auto}
+.cfg-p{flex:1 1 auto;font-size:12px;text-align:right}
+.cfg-in{padding:2px 14px 14px;display:flex;flex-direction:column;gap:8px}
+.cfg-sub{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-top:6px}
+.using-inline{color:var(--accent)}
+/* tiles: instructions files and skills */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px}
+.tile{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:8px;background:var(--panel);border:1px solid var(--line);color:var(--text);text-decoration:none;min-width:0}
+.tile:hover{border-color:var(--muted)}
+.tile-h{display:flex;align-items:center;gap:8px;min-width:0}
+.tile-h>:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.tile-h .tag{margin-left:auto}
+.tile-d{font-size:12px;line-height:1.4}
+.skilltile.using{border-color:rgba(232,162,106,.6)}
+.skilltile.using b{color:var(--accent)}
+/* rules, hooks, MCP: a list with the source at the end */
+.rules{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rules li{display:flex;align-items:baseline;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px;line-height:1.45;min-width:0}
+.rules li:last-child{border-bottom:0}
+.rules li>:first-child{flex:1 1 auto;min-width:0}
+.rules .src{flex:0 0 auto;font-size:11px;color:var(--muted);text-decoration:none}.rules .src:hover{color:var(--text)}
+.rules li>.mono.muted{flex:0 1 55%;font-size:12px}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill-deny{font-size:12px;padding:3px 8px;border-radius:6px;background:rgba(240,136,62,.12);color:#ffb77c;border:1px solid rgba(240,136,62,.3)}
+
+/* details view: session card and its stats side by side, NOW below */
+.toprow{display:flex;flex-wrap:wrap;gap:12px;align-items:stretch}
+.toprow>.box:first-child{flex:2 1 420px;min-width:0}
+.toprow>.stats{flex:1 1 240px;min-width:0;display:flex;flex-direction:column;gap:6px}
+.stats .ctx{margin-bottom:0}
+.stat{display:flex;justify-content:space-between;gap:12px;font-size:12px;margin-top:6px;min-width:0}
+/* plan columns: a header that opens the rest; the newest plan always shows */
+.group-h{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:0;padding:6px 0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;cursor:pointer;text-align:left}
+.group-h.static{cursor:default}
+button.group-h::after{content:"";flex:0 0 auto;width:7px;height:7px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:translateY(-2px) rotate(45deg);transition:transform .15s}
+.group.open>button.group-h::after{transform:translateY(2px) rotate(-135deg)}
+button.group-h:hover::after{border-color:var(--text)}
+/* expandable text that already fits is plain text */
+.expandable.fits{cursor:default}
+.expandable.fits:hover{color:inherit}
+
+/* details view: the docked status bar (progress and context) once the top row scrolls away */
+.dock{position:fixed;left:0;right:0;z-index:6;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.35);transform:translateY(-110%);opacity:0;transition:transform .25s ease,opacity .2s ease;pointer-events:none}
+.dock.shown{transform:none;opacity:1;pointer-events:auto}
+.dock:empty{display:none}
+body:not(.mode-full) .dock{display:none}
+.dock-in{max-width:1240px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;gap:14px;min-width:0}
+.dock-title{flex:1 1 auto;font-weight:600;font-size:13.5px}
+.dock-prog{flex:0 1 320px;display:flex;flex-direction:column;gap:5px;min-width:0;font-size:11.5px}
+.dock-prog .segs{margin:0}.dock-prog .segs span{height:5px}
+.dock-ctx{flex:0 0 150px;display:flex;flex-direction:column;gap:5px;font-size:11.5px}
+.dock-ctx .bar{display:block}.dock-ctx .bar>span{display:block;height:100%;border-radius:3px}
+.dock-ctx .bar.blue>span{background:var(--blue)}.dock-ctx .bar.amber>span{background:var(--accent)}.dock-ctx .bar.red>span{background:var(--red)}
+
+/* hierarchy: the two or three cards that matter most in each view sit a step forward.
+   Mixed from the theme's own text colour, so it lifts in dark themes and in light ones. */
+.lead{background:color-mix(in srgb,var(--panel) 94%,var(--text) 6%);border-color:color-mix(in srgb,var(--line) 70%,var(--text) 30%);box-shadow:0 1px 0 color-mix(in srgb,transparent 92%,var(--text) 8%) inset,0 6px 18px rgba(0,0,0,.18)}
+.stats.compact{padding:10px 12px;gap:4px}
+.stats.compact .ctx,.stats.compact .stat{font-size:11.5px;color:var(--muted)}
+
+/* effort speedometer: an arc that fills, the count inside it */
+.speedo{display:inline-flex;flex:0 0 auto}
+.speedo svg{display:block;overflow:visible}
+.speedo .track{stroke:#343843;fill:none;stroke-linecap:round}
+.speedo .fill{fill:none;stroke-linecap:round;transition:stroke-dashoffset .9s cubic-bezier(.25,.8,.3,1),stroke .6s ease,opacity .4s ease}
+.speedo .count{fill:var(--text);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums}
+.speedo.big .count{font-size:13px}
+.stat.effort{align-items:center;margin-top:8px}
+.dock-in .speedo{margin-left:4px}

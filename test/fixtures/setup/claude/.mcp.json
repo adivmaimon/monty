@@ -1,0 +1,1 @@
+{ "mcpServers": { "docs": { "command": "npx", "args": ["docs-mcp"], "env": { "TOKEN": "placeholder-not-a-secret" } }, "web": { "type": "http", "url": "https://example.invalid/mcp" } } }

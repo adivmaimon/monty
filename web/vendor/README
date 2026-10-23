@@ -1,0 +1,2 @@
+mermaid 11.4.1 (MIT, see mermaid.LICENSE), from the npm registry (npm pack mermaid@11.4.1).
+Vendored so plan diagrams render offline. Loaded only when a plan has a ```mermaid block.

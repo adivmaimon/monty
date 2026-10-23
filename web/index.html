@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monty</title>
+<link rel="icon" href="/api/icon.png?pct=0.75&size=64">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- In VS Code the extension serves this same page into a webview and sets window.MONTY. -->
+<header class="top" id="top">
+  <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9.5" cy="10" r="7"/><path d="M6.2 8.6a3.6 3.6 0 0 1 2.3-2.4"/><circle cx="18" cy="10" r="1.4" stroke-width="1.5"/><path d="M19 11.4c1.6 3.8.4 7-3 9.6" stroke-width="2.2" stroke-dasharray="0.1 2.6"/></svg>
+  <h1 id="scopeName">Monty</h1>
+  <span id="conn" class="pill">connecting…</span>
+  <span class="spacer"></span>
+  <label class="filter" id="repoPick">Repo <select id="repoFilter"><option value="">All</option></select></label>
+</header>
+
+<div id="dock" class="dock" aria-hidden="true"></div>
+<main id="live" class="wrap">
+  <div id="sessionTabs" class="tabs"></div>
+  <section id="detail"></section>
+  <section id="plans"></section>
+  <section id="stats"></section>
+  <section id="setup"></section>
+  <section id="extra"></section>
+  <section id="setupFull"></section>
+  <section id="footer"></section>
+</main>
+
+<div id="reader" class="reader" hidden>
+  <div class="readerbar">
+    <a href="#" id="back" class="btn">Back</a>
+    <span id="docPath" class="mono muted clamp1"></span>
+    <span class="spacer"></span>
+    <div class="seg" role="group" aria-label="View">
+      <button id="viewNice" aria-pressed="true">Readable</button>
+      <button id="viewRaw" aria-pressed="false">Raw</button>
+    </div>
+  </div>
+  <div class="readerbody" id="readerbody">
+    <div id="docTop"></div>
+    <article id="doc"></article>
+    <aside id="docSide"></aside>
+  </div>
+</div>
+
+<script src="md.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

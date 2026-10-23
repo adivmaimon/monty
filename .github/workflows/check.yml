@@ -1,0 +1,56 @@
+# Tests on every push and pull request, on the three systems the extension runs on.
+# The menu bar app only builds on macOS.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Core
+        run: |
+          npm ci
+          npm test
+      - name: Extension
+        working-directory: vscode
+        run: |
+          npm ci
+          npm test
+          npm run package
+
+  # Windows: build, package, and a smoke test of the core. The unit tests use Unix-shaped
+  # fixture paths (/p/Repo) and are not yet written to run there.
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run smoke
+      - name: Extension
+        working-directory: vscode
+        run: |
+          npm ci
+          npm run package
+
+  menubar:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the menu bar app
+        working-directory: menubar/MontyApp
+        run: swift build -c release

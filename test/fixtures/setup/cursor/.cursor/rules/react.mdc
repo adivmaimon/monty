@@ -1,0 +1,9 @@
+---
+description: React component conventions
+globs: src/**/*.tsx
+alwaysApply: false
+---
+
+## Conventions
+
+- Components are function components.

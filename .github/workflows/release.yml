@@ -1,0 +1,129 @@
+# Release: a version tag (v0.2.0) becomes
+#   - a GitHub Release with monty-<version>.vsix and Monty.zip (the signed, notarized
+#     menu bar app the extension downloads), and
+#   - the extension published to the VS Code Marketplace, and to Open VSX when OVSX_PAT is set.
+# The release goes up before the Marketplace publish, so the app the new extension offers
+# is already downloadable when people get the update.
+#
+# Run it by hand with dry_run on to build, sign and notarize everything without releasing
+# or publishing; the files are kept as workflow artifacts.
+#
+# Secrets: APPLE_CERT_P12_BASE64, APPLE_CERT_PASSWORD, APPLE_ID, APPLE_TEAM_ID,
+# APPLE_APP_SPECIFIC_PASSWORD, VSCE_PAT, and optionally OVSX_PAT.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build, sign and notarize, but do not release or publish"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Version
+        run: |
+          version=$(node -p "require('./vscode/package.json').version")
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "${GITHUB_REF_NAME#v}" != "$version" ]]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match vscode/package.json version $version"; exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Tests
+        run: |
+          npm ci
+          npm test
+          (cd vscode && npm ci && npm test)
+
+      - name: Package the extension
+        working-directory: vscode
+        run: |
+          npm run package
+          mv monty.vsix "monty-$VERSION.vsix"
+
+      # The certificate goes into a throwaway keychain for this run only. Apple's Developer ID
+      # intermediate goes in too, or the runner may not count the identity as valid.
+      - name: Signing keychain
+        env:
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          password=$(openssl rand -base64 24)
+          echo "$APPLE_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" >/dev/null
+          read -ra existing <<< "$(security list-keychains -d user | tr -d '"' | xargs)"
+          security list-keychains -d user -s "$keychain" "${existing[@]}"
+          rm "$RUNNER_TEMP/cert.p12"
+          curl -fsSL -o "$RUNNER_TEMP/DeveloperIDG2CA.cer" https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
+          security import "$RUNNER_TEMP/DeveloperIDG2CA.cer" -k "$keychain" || true
+          identity=$(security find-identity -v -p codesigning "$keychain" | awk '/Developer ID Application/ {print $2; exit}')
+          if [[ -z "$identity" ]]; then
+            security find-identity -p codesigning "$keychain"
+            echo "::error::no valid Developer ID Application identity in APPLE_CERT_P12_BASE64"; exit 1
+          fi
+          echo "SIGNING_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: Build, sign and notarize the menu bar app
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: SIGN_IDENTITY="$SIGNING_IDENTITY" MONTY_VERSION="$VERSION" menubar/MontyApp/build.sh
+
+      - name: Keep the files (dry run)
+        if: env.DRY_RUN == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: monty-${{ env.VERSION }}
+          path: |
+            vscode/monty-${{ env.VERSION }}.vsix
+            menubar/MontyApp/Monty.zip
+
+      - name: GitHub Release
+        if: env.DRY_RUN != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # This version's section of the changelog, without its heading.
+          awk -v v="## $VERSION" '$0==v {on=1; next} /^## / {on=0} on' vscode/CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          gh release create "v$VERSION" "vscode/monty-$VERSION.vsix" menubar/MontyApp/Monty.zip \
+            --title "Monty $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+
+      - name: Publish the extension
+        if: env.DRY_RUN != 'true'
+        working-directory: vscode
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          npx --yes @vscode/vsce@3 publish --packagePath "monty-$VERSION.vsix" -p "$VSCE_PAT"
+          if [[ -n "$OVSX_PAT" ]]; then
+            npx --yes ovsx@0.10 publish "monty-$VERSION.vsix" -p "$OVSX_PAT"
+          else
+            echo "No OVSX_PAT: skipping Open VSX"
+          fi

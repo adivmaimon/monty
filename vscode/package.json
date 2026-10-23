@@ -1,0 +1,169 @@
+{
+  "name": "monty",
+  "displayName": "Monty",
+  "description": "See what Claude Code is doing: live progress, the plan it's working through, and every file it touches, in VS Code and your Mac's menu bar.",
+  "version": "0.2.0",
+  "publisher": "adivmaimon",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1f2229",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adivmaimon/monty"
+  },
+  "homepage": "https://github.com/adivmaimon/monty#readme",
+  "bugs": {
+    "url": "https://github.com/adivmaimon/monty/issues"
+  },
+  "keywords": [
+    "claude",
+    "claude code",
+    "ai",
+    "agent",
+    "progress",
+    "plans",
+    "markdown",
+    "menu bar"
+  ],
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Visualization",
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onUri",
+    "onCustomEditor:monty.markdown"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "monty",
+          "title": "Monty",
+          "icon": "media/monocle.svg"
+        }
+      ]
+    },
+    "views": {
+      "monty": [
+        {
+          "type": "webview",
+          "id": "monty.panel",
+          "name": "Repo"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "monty.focus",
+        "title": "Monty: Show sidebar"
+      },
+      {
+        "command": "monty.openDetails",
+        "title": "Monty: Open details",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "monty.toggleFollow",
+        "title": "Monty: Toggle follow mode"
+      },
+      {
+        "command": "monty.openReadable",
+        "title": "Open readable view",
+        "category": "Monty",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "monty.installMenuBar",
+        "title": "Monty: Install menu bar app"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "monty.openDetails",
+          "when": "view == monty.panel",
+          "group": "navigation"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "monty.openReadable",
+          "when": "resourceLangId == markdown",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "monty.openReadable",
+          "when": "resourceLangId == markdown"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Monty",
+      "properties": {
+        "monty.coreDir": {
+          "type": "string",
+          "default": "",
+          "description": "Development only: run the Monty core from this checkout (its dist/src/cli.js) instead of the copy bundled with the extension. Empty uses the bundled core."
+        },
+        "monty.projectRoots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Folders whose repos Monty always watches for plans, e.g. ~/Projects. Empty: just the repos open in VS Code. Applies when Monty starts its core."
+        },
+        "monty.port": {
+          "type": "number",
+          "default": 4747
+        },
+        "monty.appPath": {
+          "type": "string",
+          "default": "",
+          "description": "Where the menu bar app is. Empty: /Applications/Monty.app or ~/Applications/Monty.app, wherever it is installed."
+        },
+        "monty.menuBarApp": {
+          "type": "boolean",
+          "default": true,
+          "description": "On a Mac, start Monty's menu bar app with VS Code, and offer to install it if it is missing."
+        }
+      }
+    },
+    "customEditors": [
+      {
+        "viewType": "monty.markdown",
+        "displayName": "Monty readable view",
+        "selector": [
+          {
+            "filenamePattern": "*.md"
+          }
+        ],
+        "priority": "default"
+      }
+    ]
+  },
+  "scripts": {
+    "sync-web": "node scripts/sync-web.mjs",
+    "build": "npm run sync-web && npm run bundle-core && tsc -p .",
+    "package": "npm run build && vsce package -o monty.vsix",
+    "test": "tsc -p . && node --test dist/*.test.js",
+    "bundle-core": "npm --prefix .. run build && node scripts/bundle-core.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "~1.90.0",
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.6.0"
+  }
+}
