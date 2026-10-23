@@ -25,6 +25,7 @@ struct Session: Decodable, Identifiable {
     var context: Context?
     var lastTest: TestRun?
     var throughput: Throughput?
+    var agent: String?
 
     struct Todo: Decodable { var text: String; var status: String }
     struct Count: Decodable { var done: Int; var total: Int }
