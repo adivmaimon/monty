@@ -34,6 +34,11 @@
   if (cfg.mode === 'doc') document.body.classList.add('doc');
   document.body.classList.add('mode-' + mode);
 
+  // Which tool a session is from. Shown only when a live session is not Claude Code, so
+  // nothing changes for people who only use Claude Code.
+  const AGENT_LABEL = { 'claude-code': 'Claude Code', opencode: 'opencode', codex: 'Codex', cline: 'Cline', roo: 'Roo Code', 'copilot-chat': 'Copilot' };
+  const mixedAgents = () => !!state && state.sessions.some((x) => x.state !== 'idle' && x.agent && x.agent !== 'claude-code');
+  const agentTag = (s) => (mixedAgents() && s.agent ? `<span class="agent">${esc(AGENT_LABEL[s.agent] || s.agent)}</span>` : '');
   const STATE_LABEL = { working: 'Working', needs_input: 'Needs you', your_turn: 'Your turn', done: 'Done', idle: 'Idle' };
   const KIND_LABEL = { read: 'Reading', edit: 'Editing', write: 'Writing', run: 'Running', test: 'Testing', search: 'Searching', web: 'Web', agent: 'Subagent', ask: 'Asking', plan: 'Planning', tool: 'Tool', prompt: 'You' };
   // Same colours as the activity dots (.k-* in style.css), for text.
@@ -150,7 +155,7 @@
       <button class="tab" data-id="${esc(s.id)}" aria-current="${s.id === selected}" title="${esc(s.title)}">
         ${progOf(s) ? segBar(progOf(s).done, progOf(s).total, s.state !== 'done', 'mini') : ''}
         <span class="clamp1" style="max-width:220px">${esc(scope ? s.title : s.repo)}</span>
-        <span class="tag st-${s.state}">${STATE_LABEL[s.state]}</span>
+        <span class="tag st-${s.state}">${STATE_LABEL[s.state]}</span>${agentTag(s)}
       </button>`).join('') : '';
     $('sessionTabs').querySelectorAll('.tab').forEach((b) => (b.onclick = () => { selected = b.dataset.id; renderAll(); }));
 
@@ -180,7 +185,7 @@
     const [card, cols] = [`
       <div class="box lead">
         <div class="head">
-          <span class="tag st-${s.state}">${STATE_LABEL[s.state]}</span>
+          <span class="tag st-${s.state}">${STATE_LABEL[s.state]}</span>${agentTag(s)}
           ${s.state === 'working' ? '' : `<span class="muted clamp1 ${xp('fr' + s.id)}" style="font-size:12px" title="${esc(s.stateReason)}">${esc(tidy(s.stateReason))}</span>`}
           <span class="spacer"></span>
           <span class="muted" style="font-size:11px;white-space:nowrap">${scope ? '' : esc(s.repo) + ' · '}${ago(s.lastEventAt)}</span>
@@ -205,7 +210,7 @@
     // The docked bar: what the top row says, in one line, for when it has scrolled away.
     const g = progOf(s);
     $('dock').innerHTML = `<div class="dock-in">
-      <span class="tag st-${s.state}">${STATE_LABEL[s.state]}</span>
+      <span class="tag st-${s.state}">${STATE_LABEL[s.state]}</span>${agentTag(s)}
       <span class="dock-title clamp1" title="${esc(s.title)}">${esc(s.title)}</span>
       ${g ? `<span class="dock-prog"><span class="muted clamp1">${esc(g.label)}</span>${segBar(g.done, g.total, s.state !== 'done', 'dockbar')}</span>` : ''}
       <span class="dock-ctx"><span class="muted">Context ${s.context.pct}%</span><span class="bar thin ${ctxClass(s.context.pct)}"><span style="width:${s.context.pct}%"></span></span></span>
@@ -465,7 +470,7 @@
     const sCard = (s) => {
       const now = s.now;
       return `<div class="box lead sum">
-        <div class="head"><span class="tag st-${s.state}">${STATE_LABEL[s.state]}</span><span class="spacer"></span><span class="muted" style="font-size:11px">${ago(s.lastEventAt)}</span></div>
+        <div class="head"><span class="tag st-${s.state}">${STATE_LABEL[s.state]}</span>${agentTag(s)}<span class="spacer"></span><span class="muted" style="font-size:11px">${ago(s.lastEventAt)}</span></div>
         <div class="title clamp2 ${xp('t' + s.id)}" title="${esc(s.title)}">${esc(s.title)}</div>
         ${progRow(s)}
         ${s.state === 'needs_input' ? `<div class="reason clamp2 ${xp('r' + s.id)}" title="${esc(s.stateReason)}">${esc(tidy(s.stateReason))}</div>`

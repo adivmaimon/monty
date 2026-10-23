@@ -40,8 +40,12 @@ export interface TouchedFile {
   minus: number;
 }
 
+/** The coding tool a session came from. */
+export type AgentTool = 'claude-code' | 'opencode' | 'codex' | 'cline' | 'roo' | 'copilot-chat';
+
 export interface Session {
   id: string;
+  agent: AgentTool;
   file: string;
   cwd: string;
   /** Repo folder name. A session started in a subfolder (Notes/app/python) belongs to Notes. */

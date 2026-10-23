@@ -4,7 +4,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Config } from './config.js';
-import { DEFAULT_SESSION_OPTIONS, SessionTracker } from './session.js';
+import { claudeAdapter } from './agents/claude.js';
+import type { AgentAdapter, SessionSource } from './agents/types.js';
 import { listRepos, scanRepo } from './projects.js';
 import { hasSetup, readSetup } from './setup.js';
 import type { MontyState, Project, RepoSetup, Session, SessionPlan } from './types.js';
@@ -16,8 +17,17 @@ const MAX_SESSIONS = 8;
 
 const STATE_ORDER: Record<Session['state'], number> = { needs_input: 0, working: 1, your_turn: 2, done: 3, idle: 4 };
 
+/** Every tool Monty reads sessions from. */
+export const ADAPTERS: AgentAdapter[] = [claudeAdapter];
+
 export class MontyStore {
-  private trackers = new Map<string, SessionTracker>();
+  /** Live sessions, keyed "<tool>:<key>". */
+  private trackers = new Map<string, SessionSource>();
+  /**
+   * Adapters switched off after throwing: the tool's format changed under us. The others
+   * keep running, and the core logs it once (CLAUDE.md: degrade, don't crash).
+   */
+  private broken = new Set<string>();
   private projects: Project[] = [];
   private setups: RepoSetup[] = [];
   /**
@@ -30,7 +40,7 @@ export class MontyStore {
   private lastJson = '';
   private timers: NodeJS.Timeout[] = [];
 
-  constructor(private cfg: Config) {}
+  constructor(private cfg: Config, private adapters: AgentAdapter[] = ADAPTERS) {}
 
   start(): void {
     this.discover();
@@ -50,28 +60,39 @@ export class MontyStore {
     return () => this.listeners.delete(fn);
   }
 
-  /** Finds session logs written to recently. Older ones are dropped from memory. */
+  /** Finds sessions active recently, from every adapter. Older ones are dropped from memory. */
   discover(nowMs = Date.now()): void {
     const seen = new Set<string>();
-    for (const dir of safeReaddir(this.cfg.claudeProjectsDir)) {
-      const full = path.join(this.cfg.claudeProjectsDir, dir);
-      for (const f of safeReaddir(full)) {
-        if (!f.endsWith('.jsonl')) continue;
-        const file = path.join(full, f);
-        let m: number;
-        try {
-          m = fs.statSync(file).mtimeMs;
-        } catch {
-          continue;
+    for (const a of this.adapters) {
+      if (this.broken.has(a.tool)) continue;
+      try {
+        for (const key of a.live(this.cfg, nowMs)) {
+          const k = `${a.tool}:${key}`;
+          seen.add(k);
+          if (!this.trackers.has(k)) this.trackers.set(k, a.open(key, this.cfg));
         }
-        if (nowMs - m > this.cfg.liveMs) continue;
-        seen.add(file);
-        if (!this.trackers.has(file)) {
-          this.trackers.set(file, new SessionTracker(file, { ...DEFAULT_SESSION_OPTIONS, contextWindow: this.cfg.contextWindow }));
-        }
+      } catch (e) {
+        this.disable(a.tool, e);
       }
     }
-    for (const file of this.trackers.keys()) if (!seen.has(file)) this.trackers.delete(file);
+    for (const k of this.trackers.keys()) if (!seen.has(k)) this.trackers.delete(k);
+  }
+
+  private disable(tool: string, e: unknown): void {
+    if (this.broken.has(tool)) return;
+    this.broken.add(tool);
+    console.error(`monty: stopped reading ${tool} sessions: ${(e as Error)?.message ?? e}`);
+    for (const k of this.trackers.keys()) if (k.startsWith(`${tool}:`)) this.trackers.delete(k);
+  }
+
+  /** Runs one source's call; a source that throws is dropped with its adapter. */
+  private guard<T>(key: string, fn: () => T): T | undefined {
+    try {
+      return fn();
+    } catch (e) {
+      this.disable(key.slice(0, key.indexOf(':')), e);
+      return undefined;
+    }
   }
 
   /**
@@ -104,13 +125,15 @@ export class MontyStore {
   }
 
   tick(): void {
-    for (const t of this.trackers.values()) t.poll();
+    for (const [k, t] of [...this.trackers]) this.guard(k, () => t.poll());
     this.emitIfChanged();
   }
 
   state(nowMs = Date.now()): MontyState {
-    const sessions = [...this.trackers.values()]
-      .map((t) => withPlan(withRepo(t.snapshot(nowMs), this.cfg.projectRoots, [...this.registered.keys()]), this.projects))
+    const sessions = [...this.trackers]
+      .map(([k, t]) => this.guard(k, () => t.snapshot(nowMs)))
+      .filter((s): s is Session => !!s)
+      .map((s) => withPlan(withRepo(s, this.cfg.projectRoots, [...this.registered.keys()]), this.projects))
       .filter((s) => s.lastEventAt)
       .sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || (b.lastEventAt ?? '').localeCompare(a.lastEventAt ?? ''))
       .slice(0, MAX_SESSIONS);
@@ -139,14 +162,6 @@ function looksLikeRepo(dir: string): boolean {
 export function isUnderKnown(file: string, roots: string[], repos: string[]): boolean {
   const f = path.resolve(file);
   return [...roots, ...repos].some((r) => f.startsWith(path.resolve(r) + path.sep));
-}
-
-function safeReaddir(p: string): string[] {
-  try {
-    return fs.readdirSync(p);
-  } catch {
-    return [];
-  }
 }
 
 /**

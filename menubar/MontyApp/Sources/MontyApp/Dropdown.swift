@@ -157,6 +157,9 @@ struct Dropdown: View {
     }
 
     private var live: [Session] { store.state?.sessions.filter { $0.state != "idle" } ?? [] }
+    /// The tool label shows only when a live session is not Claude Code, as in the panel.
+    private var mixedAgents: Bool { live.contains { ($0.agent ?? "claude-code") != "claude-code" } }
+    private let agentNames = ["claude-code": "Claude Code", "opencode": "opencode", "codex": "Codex", "cline": "Cline", "roo": "Roo Code", "copilot-chat": "Copilot"]
 
     private var header: some View {
         HStack(spacing: 10) {
@@ -203,6 +206,11 @@ struct Dropdown: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
                         Text(s.repo).font(.system(size: 13.5, weight: .semibold))
+                        if mixedAgents, let a = s.agent {
+                            Text(agentNames[a] ?? a).font(.system(size: 11)).foregroundStyle(Color.soft)
+                                .padding(.horizontal, 6).padding(.vertical, 1)
+                                .overlay(Capsule().stroke(Color.line))
+                        }
                         Spacer(minLength: 8)
                         Text(StateStyle.label(s.state))
                             .font(.system(size: 11, weight: .semibold))
@@ -268,7 +276,7 @@ struct Dropdown: View {
                     .padding(.top, 2)
                 }
                 HStack {
-                    if let el = elapsed(s.startedAt) { Text("Started \(el) ago") }
+                    if let el = elapsed(s.startedAt) { Text(el == "just now" ? "Started just now" : "Started \(el) ago") }
                     Spacer()
                     if let t = s.lastTest { Text(t.ok ? "Tests passing" : "Tests failing").foregroundStyle(t.ok ? Color.green : Color(hex: 0xff7b72)) }
                 }

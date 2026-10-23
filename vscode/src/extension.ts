@@ -13,6 +13,7 @@ import { findApp, installMenuBarApp, offerMenuBarApp } from './install';
 
 interface Session {
   id: string;
+  agent?: string;
   cwd: string;
   title: string;
   state: 'working' | 'needs_input' | 'your_turn' | 'done' | 'idle';
@@ -26,6 +27,7 @@ interface Project { file: string; name: string }
 interface State { sessions: Session[]; projects: Project[] }
 
 const POLL_MS = 1500;
+const AGENT_NAMES: Record<string, string> = { 'claude-code': 'Claude Code', opencode: 'opencode', codex: 'Codex', cline: 'Cline', roo: 'Roo Code', 'copilot-chat': 'Copilot' };
 
 let latest: State | null = null;
 /** Where the extension is installed; the bundled core lives in its core/ folder. */
@@ -482,7 +484,7 @@ function updateStatus(item: vscode.StatusBarItem, state: State | null) {
   const prog = s.progress.total ? `${s.progress.done}/${s.progress.total}` : s.plan?.label ?? '';
   const what = s.state === 'needs_input' ? 'Needs you' : s.state === 'done' ? 'Done' : s.state === 'your_turn' ? 'Your turn' : s.now?.file ? path.basename(s.now.file) : 'Working';
   item.text = `${s.state === 'needs_input' ? '$(bell-dot)' : s.state === 'done' ? '$(check)' : '$(eye)'} ${[prog, what].filter(Boolean).join(' · ')}`;
-  item.tooltip = `${s.title}\n${s.stateReason}`;
+  item.tooltip = `${s.title}\n${s.stateReason}${s.agent && s.agent !== 'claude-code' ? `\n${AGENT_NAMES[s.agent] ?? s.agent}` : ''}`;
   item.backgroundColor = s.state === 'needs_input' ? new vscode.ThemeColor('statusBarItem.warningBackground') : undefined;
 }
 

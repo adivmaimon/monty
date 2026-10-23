@@ -116,3 +116,60 @@ test('a session in a subfolder of a registered repo belongs to the repo', () => 
   assert.equal(s.repo, 'Alpha');
   assert.equal(s.repoPath, '/w/Alpha');
 });
+
+// Adapters: one tool's reader failing must not stop the others.
+import type { AgentAdapter } from '../src/agents/types.js';
+import { SessionModel } from '../src/model.js';
+
+test('a broken adapter is switched off and reported once; the others keep working', () => {
+  const ok: AgentAdapter = {
+    tool: 'opencode',
+    live: () => ['s1'],
+    open: () => {
+      const m = new SessionModel('/x/s1', 's1');
+      m.folder('/w/Alpha');
+      m.seen('2026-10-23T10:00:00Z');
+      return { poll: () => false, snapshot: (now) => m.snapshot(now) };
+    },
+  };
+  const bad: AgentAdapter = { tool: 'codex', live: () => { throw new Error('format changed'); }, open: () => { throw new Error('x'); } };
+  const errors: string[] = [];
+  const orig = console.error;
+  console.error = (msg: string) => errors.push(msg);
+  try {
+    const store = new MontyStore(loadConfig({ MONTY_CLAUDE_PROJECTS: os.tmpdir() }), [bad, ok]);
+    store.discover();
+    store.discover();
+    const s = store.state(Date.parse('2026-10-23T10:00:05Z'));
+    assert.deepEqual(s.sessions.map((x) => x.id), ['s1']);
+    assert.equal(errors.length, 1);
+    assert.match(errors[0] ?? '', /codex.*format changed/);
+  } finally {
+    console.error = orig;
+  }
+});
+
+test('SessionModel from events alone: a tool call, a test run, tokens, end of turn', () => {
+  const m = new SessionModel('/x/s', 's');
+  m.agentName = 'opencode';
+  m.asksPermission = false;
+  m.folder('/w/Alpha');
+  const t0 = m.seen('2026-10-23T10:00:00Z');
+  m.title('prompt', 'Fix the login');
+  m.toolStart('a', 'Edit', { file_path: '/w/Alpha/src/a.ts', old_string: 'x', new_string: 'y\nz' }, t0, '2026-10-23T10:00:00Z');
+  m.toolEnd('a', { text: 'ok', isError: false }, '2026-10-23T10:00:01Z');
+  m.toolStart('b', 'Bash', { command: 'npm test' }, t0, '2026-10-23T10:00:02Z');
+  assert.equal(m.snapshot(Date.parse('2026-10-23T10:05:00Z')).state, 'working', 'no permission guess when the tool does not ask');
+  m.toolEnd('b', { text: 'Tests: 3 passed', isError: false }, '2026-10-23T10:00:03Z');
+  m.usageFor('r1', t0, { in: 1000, out: 500, context: 40000 });
+  m.seen('2026-10-23T10:00:04Z');
+  m.stop('end_turn');
+  const s = m.snapshot(Date.parse('2026-10-23T10:00:05Z'));
+  assert.equal(s.state, 'your_turn');
+  assert.equal(s.stateReason, 'opencode finished its turn');
+  assert.equal(s.title, 'Fix the login');
+  assert.deepEqual(s.touched.map((f) => [f.path, f.edits, f.plus]), [['src/a.ts', 1, 2]]);
+  assert.equal(s.lastTest?.ok, true);
+  assert.equal(s.lastEdit?.file, 'src/a.ts');
+  assert.equal(s.context.tokens, 40000);
+});
