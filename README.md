@@ -1,8 +1,8 @@
-# Monty · Keep an eye on your A-eye
+# Monty · Keep an eye on your AI
 
 Tired of reading markdown? Me too 🥱
 
-Monty watches sessions from Claude Code, Codex CLI, opencode, Cline, Roo Code and Copilot Chat, along with the plans in your repos, and reports progress in VS Code and the Mac menu bar. View your A-eye coding progress with nifty visual widgets and read markdown files like a human. Monty is 100% local and read only.
+Monty watches sessions from Claude Code, Codex CLI, opencode, Cline, Roo Code and Copilot Chat, along with the plans in your repos, and reports progress in VS Code and the Mac menu bar. View your AI coding progress with nifty visual widgets and read markdown files like a human. Monty is 100% local and read only.
 
 **Install:** search "Monty" in the VS Code Extensions view, or see the [extension's page](vscode/README.md) for what it does, privacy and settings.
 
