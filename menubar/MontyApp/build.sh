@@ -82,7 +82,15 @@ if [[ -n "${NOTARY_PROFILE:-}" || -n "${APPLE_ID:-}" ]]; then
     echo "Notarization was not accepted ($status)" >&2
     exit 1
   fi
-  xcrun stapler staple "$APP"
+  # Stapling fetches the ticket from Apple's CDN, which can drop the connection on CI
+  # ("The network connection was lost", error 68) right after a successful notarization.
+  # Five tries, 20 s apart, ride out a blip; the notarization itself is not repeated.
+  for try in 1 2 3 4 5; do
+    if xcrun stapler staple "$APP"; then break; fi
+    if [[ $try == 5 ]]; then echo "Could not staple the notarization ticket" >&2; exit 68; fi
+    echo "Staple failed (try $try of 5), retrying in 20 s" >&2
+    sleep 20
+  done
   xcrun stapler validate "$APP"
   spctl --assess --type execute --verbose=2 "$APP"
   ditto -c -k --keepParent "$APP" Monty.zip
