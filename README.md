@@ -6,12 +6,34 @@ Monty watches sessions from Claude Code, Codex CLI, opencode, Cline, Roo Code an
 
 **Install:** search "Monty" in the VS Code Extensions view, or see the [extension's page](vscode/README.md) for what it does, privacy and settings.
 
-![Monty's details view](docs/screenshots/details.png)
+## A look around
 
-<p>
-  <img alt="The VS Code sidebar" src="docs/screenshots/sidebar.png" width="300">
-  <img alt="The menu bar dropdown, with a Codex session that needs you and a Claude Code session at work" src="docs/screenshots/menubar.png" width="380">
-</p>
+### The details view
+
+Everything about the session in one tab: where it is in the plan, what it's doing right now, context and tokens, the last test run, activity and files changed.
+
+![The details view: session, plan progress, what the agent is doing now, activity and files changed](docs/screenshots/details.png)
+
+### The sidebar and the menu bar
+
+<table>
+  <tr>
+    <th width="50%">In VS Code's sidebar</th>
+    <th width="50%">In the Mac menu bar</th>
+  </tr>
+  <tr>
+    <td>The short version for the open repo: state, progress, what it's doing, context.</td>
+    <td>Every live session at a glance, from any app. The monocle taps the glass when one needs you.</td>
+  </tr>
+  <tr>
+    <td align="center" valign="top"><img alt="The VS Code sidebar" src="docs/screenshots/sidebar.png" width="272"></td>
+    <td align="center" valign="top"><img alt="The menu bar dropdown, with a Codex session that needs you and a Claude Code session at work" src="docs/screenshots/menubar.png" width="386"></td>
+  </tr>
+</table>
+
+### Plans, readable
+
+Any markdown file opens as a page you can actually read: phases with progress, collapsible sections, diagrams, and file references that open in the editor.
 
 ![A plan in the readable view](docs/screenshots/plan.png)
 
