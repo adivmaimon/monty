@@ -388,7 +388,7 @@
     const list = orderedSkills(setup, using);
     const shown = open.skills ? list : list.slice(0, SETUP_ROWS);
     const rows = shown.map((k) => `<a href="#" class="row skill${k.name === using ? ' using' : ''}" data-doc="${esc(k.file)}" title="${esc(k.description || skillName(k))}">
-      <span class="x clamp1">${esc(skillName(k))}</span>${k.name === using ? '<span class="tag st-working">in use</span>' : k.kind === 'skill' ? '' : `<span class="muted kind">${KIND_NOUN[k.kind]}</span>`}</a>`).join('');
+      <span class="x clamp1">${esc(skillName(k))}</span>${k.name === using ? '<span class="tag st-working">in use</span>' : `<span class="muted kind">${KIND_NOUN[k.kind]}</span>`}</a>`).join('');
     return `<div class="box setupcard">
       <h2>Config</h2>
       <div class="chips toolchips">${setup.tools.map((t) => `<span>${esc(t)}</span>`).join('')}</div>
@@ -428,7 +428,7 @@
         <a href="#" class="src mono" data-open="${esc(r.file)}" title="Open ${esc(r.label)}">${esc(r.label)}</a></li>`).join('')}</ul></div>`).join('');
 
     const skills = orderedSkills(setup, using).map((k) => `<a href="#" class="tile skilltile${k.name === using ? ' using' : ''}" data-open="${esc(k.file)}" title="${esc(k.description || skillName(k))}">
-      <span class="tile-h"><b>${esc(skillName(k))}</b>${k.name === using ? '<span class="tag st-working">in use</span>' : k.kind === 'skill' ? '' : `<span class="tag st-idle">${KIND_NOUN[k.kind]}</span>`}</span>
+      <span class="tile-h"><b>${esc(skillName(k))}</b>${k.name === using ? '<span class="tag st-working">in use</span>' : `<span class="tag st-idle">${KIND_NOUN[k.kind]}</span>`}</span>
       ${k.description ? `<span class="tile-d muted clamp2">${esc(k.description)}</span>` : ''}</a>`).join('');
 
     const guardParts = [];
