@@ -27,7 +27,7 @@
   const X = new Set();
   // Follow mode lives in the extension (per workspace); the page only shows and flips it.
   let follow = !!cfg.follow;
-  const followToggle = () => vscode ? `<label class="switch" title="Opens each file the agent edits beside yours, new lines highlighted, so you can look over its shoulder"><input type="checkbox" data-follow ${follow ? 'checked' : ''}><span>Follow edits</span></label>` : '';
+  const followToggle = () => vscode ? `<label class="switch" title="Opens each file the agent edits beside yours, new lines highlighted, so you can look over its shoulder"><input type="checkbox" data-follow ${follow ? 'checked' : ''}><span>Follow live file edits</span></label>` : '';
   const xp = (key) => `expandable${X.has(key) ? ' expanded' : ''}" data-x="${esc(key)}`;
 
   if (vscode) document.body.classList.add('vscode');
@@ -489,7 +489,7 @@
     $('detail').innerHTML = (sessions.length ? sessions.slice(0, 3).map(sCard).join('')
       : `<div class="empty">No session in ${esc(base(scope || 'this repo'))} at present. I shall keep an eye out.</div>`);
     $('extra').innerHTML = '';
-    $('footer').innerHTML = `${vscode ? `<div class="box followcard">${followToggle()}<p class="muted">Opens each file the agent edits beside yours and highlights the new lines for a moment. Looking over its shoulder, discreetly.</p></div>` : ''}<button class="btn wide" data-details>Open details</button>`;
+    $('footer').innerHTML = `${vscode ? `<div class="box followcard">${followToggle()}</div>` : ''}<button class="btn wide" data-details>Open details</button>`;
     $('plans').innerHTML = plans.length ? `<div class="box lead"><h2>Plans</h2>${plans.map(planRow).join('')}
       ${state.projects.length > plans.length ? `<a href="#" class="more" data-details>All ${state.projects.length} plans</a>` : ''}</div>` : '';
   }

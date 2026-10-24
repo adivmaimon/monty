@@ -187,7 +187,7 @@ export function scopeState(state: MontyState, repo: string | null | undefined): 
 
 /**
  * Attaches the repo's active plan when the session has no todo list of its own.
- * A plan the session read or edited wins, then one its title names ("/execute
+ * The plan the session read, edited or named in a command most recently wins, then one its title names ("/execute
  * project-x"), then the repo's only active plan. With several active plans and no sign of
  * which one, there is no plan: picking the newest put a plan the session wasn't working
  * on beside the others, and it read as two versions of the same work.
@@ -195,16 +195,21 @@ export function scopeState(state: MontyState, repo: string | null | undefined): 
  */
 export function withPlan(s: Session, projects: Project[]): Session {
   if (s.progress.total || !s.repoPath) return s;
-  const candidates = projects.filter((p) => p.status === 'active' && p.repoPath === s.repoPath && p.progress.basis !== 'status' && p.progress.total > 0);
-  if (!candidates.length) return s;
-  const touched = new Set(s.touched.map((f) => path.resolve(s.cwd, f.path)));
+  // A plan the session went near counts even while its Status line still says Pending:
+  // agents start work before anyone updates that line.
+  const open = projects.filter((p) => (p.status === 'active' || p.status === 'pending') && p.repoPath === s.repoPath && p.progress.basis !== 'status' && p.progress.total > 0);
+  if (!open.length) return s;
+  const byFile = new Map(open.map((p) => [p.file, p]));
   // Whole words only: a plan called "web.md" must not match "Fix the webhook".
   const words = new Set(s.title.toLowerCase().split(/[\s/,]+/).map((w) => w.replace(/\.md$/, '')));
+  const active = open.filter((p) => p.status === 'active');
   let pick: Project | undefined;
   let match: SessionPlan['match'] = 'only';
-  if ((pick = candidates.find((p) => touched.has(p.file)))) match = 'touched';
-  else if ((pick = candidates.find((p) => words.has(path.basename(p.file, '.md').toLowerCase())))) match = 'named';
-  else if (candidates.length === 1) [pick, match] = [candidates[0], 'only'];
+  // The plan it went near last: a long session works through several.
+  const recent = (s.recentDocs ?? s.touched.map((f) => path.resolve(s.cwd, f.path))).find((f) => byFile.has(f));
+  if (recent) [pick, match] = [byFile.get(recent), 'touched'];
+  else if ((pick = open.find((p) => words.has(path.basename(p.file, '.md').toLowerCase())))) match = 'named';
+  else if (active.length === 1) [pick, match] = [active[0], 'only'];
   if (!pick) return s;
   const { done, total } = pick.progress;
   const basis = pick.progress.basis as SessionPlan['basis'];

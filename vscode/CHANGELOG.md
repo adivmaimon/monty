@@ -4,6 +4,8 @@
 
 - A session's progress bar only follows a plan it has opened or named, or the repo's only active plan. With several active plans Monty no longer guesses the newest.
 - The menu bar names the plan beside its progress.
+- A session's plan is the one it last read or wrote, including from the shell (`cat plan.md`), even while the plan still says Pending.
+- The follow toggle reads "Follow live file edits", without the paragraph under it.
 
 ## 0.3.1
 

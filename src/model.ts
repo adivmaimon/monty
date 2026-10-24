@@ -103,6 +103,8 @@ export class SessionModel {
   private sidechainPending = new Set<string>();
   private activity: Activity[] = [];
   private touched = new Map<string, TouchedFile>();
+  /** Markdown files the session opened, wrote or named in a command, by absolute path: when, last. */
+  private docsSeen = new Map<string, number>();
   private contextTokens = 0;
   /** Token use per reply, counted once per reply id, recent ones only. */
   private usage: { at: number; in: number; out: number }[] = [];
@@ -208,7 +210,11 @@ export class SessionModel {
     const p: Pending = { name, at, testCommand: name === 'Bash' && isTestCommand(input.command), activity: act };
     const snippets = editSnippets(name, input);
     if (act?.file && snippets.length) p.edit = { file: act.file, snippets };
-    if (name === 'Bash' && typeof input.command === 'string') this.bashEdits(p, input.command);
+    if (name === 'Bash' && typeof input.command === 'string') {
+      this.bashEdits(p, input.command);
+      this.noteDocs(input.command, at);
+    }
+    if (typeof input.file_path === 'string' && /\.md$/i.test(input.file_path)) this.docsSeen.set(path.resolve(this.cwd || '/', input.file_path), at);
     this.pending.set(id, p);
     if (act) {
       this.pushActivity(act);
@@ -260,6 +266,22 @@ export class SessionModel {
    * sessions change most files that way, and follow mode and the explorer dots would
    * otherwise miss them. Only files inside the repo; the last one is what follow opens.
    */
+  /**
+   * Markdown paths in a shell command: `cat .claude/projects/active/x.md`, a heredoc into
+   * one, a script that opens it. Agents read plans this way as often as with a Read tool,
+   * and which plan a session is on is the plan it last went near.
+   */
+  private noteDocs(command: string, at: number): void {
+    const home = (d: string) => (d.startsWith('~') ? path.join(os.homedir(), d.slice(1)) : d);
+    let base = this.shellCwd || this.cwd || '/';
+    const cd = /(?:^|&&|;)\s*cd\s+(["']?)([^"'&;|\n]+)\1/.exec(command);
+    if (cd?.[2]) base = path.resolve(base, home(cd[2].trim()));
+    for (const m of command.matchAll(/[\w~@./-]*[\w-]\.md\b/g)) {
+      this.docsSeen.set(path.resolve(base, home(m[0])), at);
+      if (this.docsSeen.size > 200) this.docsSeen.delete(this.docsSeen.keys().next().value as string);
+    }
+  }
+
   private bashEdits(p: Pending, command: string): void {
     for (const w of bashWrites(command)) {
       const home = (d: string) => (d.startsWith('~') ? path.join(os.homedir(), d.slice(1)) : d);
@@ -346,6 +368,7 @@ export class SessionModel {
       activity: this.activity.slice(0, 25),
       context: { tokens: this.contextTokens, window, pct: Math.min(100, Math.round((this.contextTokens / window) * 100)) },
       touched: [...this.touched.values()].sort((a, b) => b.edits - a.edits || b.reads - a.reads).slice(0, 30),
+      recentDocs: [...this.docsSeen].sort((a, b) => b[1] - a[1]).slice(0, 20).map(([f]) => f),
       lastTest: this.lastTest,
       lastEdit: this.lastEdit,
       inUse: this.inUse,

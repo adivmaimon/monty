@@ -184,3 +184,18 @@ test('the headline follows the latest prompt that says something, not the first 
   m.promptTitle('Now fix the headline in the sidebar');
   assert.equal(m.snapshot(0).title, 'Now fix the headline in the sidebar');
 });
+
+test('the plan a session last read from the shell is its plan, even while still marked Pending', () => {
+  const m = new SessionModel('/x.jsonl', 's1');
+  m.folder('/P/Monty');
+  m.toolStart('t1', 'Bash', { command: 'cat .claude/projects/active/project-a.md' }, 1000, '2026-10-24T10:00:00Z');
+  m.toolStart('t2', 'Bash', { command: 'cd /P/Monty/.claude/projects/active && cat project-router.md' }, 2000, '2026-10-24T10:01:00Z');
+  const s = { ...m.snapshot(3000), repoPath: '/P/Monty' };
+  assert.deepEqual(s.recentDocs?.slice(0, 2), ['/P/Monty/.claude/projects/active/project-router.md', '/P/Monty/.claude/projects/active/project-a.md']);
+  const a = plan('/P/Monty/.claude/projects/active/project-a.md', 1, 3, '2026-10-23');
+  const router = plan('/P/Monty/.claude/projects/active/project-router.md', 0, 2, '2026-10-01', 'pending');
+  const other = plan('/P/Monty/.claude/projects/active/project-c.md', 1, 4, '2026-10-24');
+  const p = withPlan(s, [a, router, other]).plan;
+  assert.equal(p?.file, router.file);
+  assert.equal(p?.label, 'Phase 1 of 2');
+});

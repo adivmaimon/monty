@@ -70,6 +70,8 @@ export interface Session {
   activity: Activity[]; // newest first
   context: { tokens: number; window: number; pct: number };
   touched: TouchedFile[];
+  /** Markdown files the session went near (read, wrote, named in a command), absolute, most recent first. */
+  recentDocs?: string[];
   lastTest?: { ok: boolean; summary: string; time: string };
   /** The most recent edit that succeeded, for VS Code's follow mode. */
   lastEdit?: LastEdit;
