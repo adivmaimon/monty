@@ -2,8 +2,11 @@
 // so README images never show anyone's real work.
 //
 //   node docs/demo/make-demo.mjs <dir>
-//   MONTY_CLAUDE_PROJECTS=<dir>/logs MONTY_PORT=4793 node dist/src/cli.js
+//   MONTY_CLAUDE_PROJECTS=<dir>/logs MONTY_CODEX_DIR=<dir>/codex MONTY_PROJECTS=<dir> MONTY_PORT=4793 node dist/src/cli.js
 //   then poll /api/state?repo=<dir>/acme-api (or open <dir>/acme-api in VS Code)
+//
+// Two sessions: Claude Code at work in acme-api, and Codex in acme-web, quiet on a
+// command that needs approval (so it reads as needing you).
 //
 // Timestamps are relative to now, so the session reads as live for a few minutes.
 import * as fs from 'node:fs';
@@ -125,4 +128,33 @@ tool(5, 'Edit', { file_path: path.join(repo, 'src/routes/login.ts'), old_string:
 const logDir = path.join(dir, 'logs', repo.replace(/[^A-Za-z0-9]/g, '-'));
 fs.mkdirSync(logDir, { recursive: true });
 fs.writeFileSync(path.join(logDir, 'demo-0001.jsonl'), lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
-console.log(`Demo repo: ${repo}\nSession logs: ${path.join(dir, 'logs')}`);
+// A Codex session in a second repo: a patch applied, then a migration waiting on approval.
+const web = path.join(dir, 'acme-web');
+fs.mkdirSync(path.join(web, '.git'), { recursive: true });
+fs.mkdirSync(path.join(web, 'src'), { recursive: true });
+fs.writeFileSync(path.join(web, 'src', 'checkout.tsx'), '// demo\n');
+const tid = '0199d3a1-5b2c-7e40-9a11-2f6c0d8e4b7a';
+const day = new Date(now);
+const pad = (x) => String(x).padStart(2, '0');
+const codexDir = path.join(dir, 'codex', 'sessions', String(day.getFullYear()), pad(day.getMonth() + 1), pad(day.getDate()));
+fs.mkdirSync(codexDir, { recursive: true });
+const ev = (t, payload) => ({ timestamp: at(t), type: 'event_msg', payload });
+const item = (t, payload) => ({ timestamp: at(t), type: 'response_item', payload });
+const prompt = 'Show the saved card on the checkout page';
+const codex = [
+  { timestamp: at(300), type: 'session_meta', payload: { id: tid, cwd: web, cli_version: '0.164.0', source: 'cli', history_mode: 'paginated', git: { branch: 'checkout-cards' } } },
+  ev(300, { type: 'task_started', turn_id: 't1', model_context_window: 258400 }),
+  { timestamp: at(300), type: 'turn_context', payload: { turn_id: 't1', cwd: web, approval_policy: 'on-request', model: 'gpt-5.5-codex' } },
+  ev(300, { type: 'item_completed', turn_id: 't1', item: { type: 'UserMessage', id: 'u1', content: [{ type: 'text', text: prompt }] } }),
+  item(280, { type: 'function_call', name: 'update_plan', arguments: JSON.stringify({ plan: [{ step: 'Read the checkout page', status: 'completed' }, { step: 'Render the saved card', status: 'completed' }, { step: 'Add the cards column', status: 'in_progress' }, { step: 'Run the e2e tests', status: 'pending' }] }), call_id: 'c0' }),
+  item(280, { type: 'function_call_output', call_id: 'c0', output: 'Plan updated' }),
+  item(260, { type: 'function_call', name: 'exec_command', arguments: JSON.stringify({ cmd: 'sed -n 1,80p src/checkout.tsx' }), call_id: 'c1' }),
+  item(259, { type: 'function_call_output', call_id: 'c1', output: 'Chunk ID: 1\nWall time: 0.02 seconds\nProcess exited with code 0\nOutput:\n...' }),
+  item(200, { type: 'custom_tool_call', name: 'apply_patch', input: '*** Begin Patch\n*** Update File: src/checkout.tsx\n@@\n+  {card && <SavedCard card={card} />}\n*** End Patch\n', call_id: 'c2' }),
+  item(199, { type: 'custom_tool_call_output', call_id: 'c2', output: 'Success. Updated the following files:\nM src/checkout.tsx\n' }),
+  ev(199, { type: 'token_count', info: { last_token_usage: { input_tokens: 61000, cached_input_tokens: 52000, output_tokens: 900, total_tokens: 61900 }, model_context_window: 258400 } }),
+  item(60, { type: 'function_call', name: 'exec_command', arguments: JSON.stringify({ cmd: 'npm run db:migrate' }), call_id: 'c3' }),
+];
+fs.writeFileSync(path.join(codexDir, `rollout-demo-${tid}.jsonl`), codex.map((l) => JSON.stringify(l)).join('\n') + '\n');
+
+console.log(`Demo repos: ${repo}, ${web}\nSession logs: ${path.join(dir, 'logs')}, ${path.join(dir, 'codex')}`);
