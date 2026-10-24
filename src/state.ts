@@ -188,7 +188,9 @@ export function scopeState(state: MontyState, repo: string | null | undefined): 
 /**
  * Attaches the repo's active plan when the session has no todo list of its own.
  * A plan the session read or edited wins, then one its title names ("/execute
- * project-x"), then the repo's only active plan, then the most recently changed.
+ * project-x"), then the repo's only active plan. With several active plans and no sign of
+ * which one, there is no plan: picking the newest put a plan the session wasn't working
+ * on beside the others, and it read as two versions of the same work.
  * Plans with only a Status line (no phases or tasks) give no progress, so are skipped.
  */
 export function withPlan(s: Session, projects: Project[]): Session {
@@ -199,11 +201,10 @@ export function withPlan(s: Session, projects: Project[]): Session {
   // Whole words only: a plan called "web.md" must not match "Fix the webhook".
   const words = new Set(s.title.toLowerCase().split(/[\s/,]+/).map((w) => w.replace(/\.md$/, '')));
   let pick: Project | undefined;
-  let match: SessionPlan['match'];
+  let match: SessionPlan['match'] = 'only';
   if ((pick = candidates.find((p) => touched.has(p.file)))) match = 'touched';
   else if ((pick = candidates.find((p) => words.has(path.basename(p.file, '.md').toLowerCase())))) match = 'named';
   else if (candidates.length === 1) [pick, match] = [candidates[0], 'only'];
-  else [pick, match] = [[...candidates].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0], 'newest'];
   if (!pick) return s;
   const { done, total } = pick.progress;
   const basis = pick.progress.basis as SessionPlan['basis'];

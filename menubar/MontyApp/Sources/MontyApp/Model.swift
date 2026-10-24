@@ -38,7 +38,7 @@ struct Session: Decodable, Identifiable {
     /// The task list when the session has one, else its repo's plan (current Claude Code has no todo tools).
     var shownProgress: (done: Int, total: Int, label: String)? {
         if progress.total > 0 { return (progress.done, progress.total, "\(progress.done) of \(progress.total) tasks") }
-        if let p = plan, p.total > 0 { return (p.done, p.total, p.label) }
+        if let p = plan, p.total > 0 { return (p.done, p.total, "\(p.label) · \(p.name)") } // named, so it is not mistaken for another plan listed below
         return nil
     }
 }

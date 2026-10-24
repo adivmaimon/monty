@@ -106,7 +106,7 @@ export interface SessionPlan {
   /** "Phase 2 of 4" or "3/8 tasks" */
   label: string;
   /** touched: the session read or edited the plan; named: the title names it; only: the repo's one active plan; newest: most recently changed of several */
-  match: 'touched' | 'named' | 'only' | 'newest';
+  match: 'touched' | 'named' | 'only';
 }
 
 export type ProjectStatus = 'active' | 'pending' | 'parked' | 'completed' | 'cancelled';

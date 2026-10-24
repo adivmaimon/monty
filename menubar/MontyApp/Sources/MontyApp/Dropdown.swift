@@ -229,7 +229,7 @@ struct Dropdown: View {
                     }
                     Text(s.title).font(.system(size: 12.5)).foregroundStyle(Color.soft).lineLimit(1).truncationMode(.tail)
                     if let prog {
-                        Text(prog.label).font(.system(size: 11.5)).foregroundStyle(Color.muted).padding(.top, 2)
+                        Text(prog.label).font(.system(size: 11.5)).foregroundStyle(Color.muted).lineLimit(1).truncationMode(.tail).padding(.top, 2)
                         SegBar(colors: SegBar.colors(done: prog.done, total: prog.total, current: s.state != "done"))
                     }
                     if let line {

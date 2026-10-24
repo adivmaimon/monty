@@ -3,6 +3,8 @@
 ## 0.3.1
 
 - The Marketplace page matches the GitHub README: same introduction and screenshot tour.
+- A session's progress bar only follows a plan it has opened or named, or the repo's only active plan. With several active plans Monty no longer guesses the newest.
+- The menu bar names the plan beside its progress.
 
 ## 0.3.0
 

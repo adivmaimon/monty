@@ -36,11 +36,10 @@ test('the repo\'s only active plan becomes the session\'s progress', () => {
   assert.equal(s.plan?.match, 'only');
 });
 
-test('a plan the session touched or names beats the newest', () => {
+test('with several active plans, only one the session touched or names is its plan', () => {
   const a = plan('/P/Monty/.claude/projects/active/project-a.md', 0, 3, '2026-10-20');
   const b = plan('/P/Monty/.claude/projects/active/project-b.md', 2, 5, '2026-10-01');
-  assert.equal(withPlan(sess(), [a, b]).plan?.match, 'newest');
-  assert.equal(withPlan(sess(), [a, b]).plan?.file, a.file);
+  assert.equal(withPlan(sess(), [a, b]).plan, undefined, 'no guessing the newest');
   assert.equal(withPlan(sess({ title: '/execute project-b phase 3' }), [a, b]).plan?.file, b.file);
   const touched = [{ path: '.claude/projects/active/project-b.md', reads: 1, edits: 0, plus: 0, minus: 0 }];
   assert.equal(withPlan(sess({ touched }), [a, b]).plan?.match, 'touched');
