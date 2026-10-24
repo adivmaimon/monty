@@ -635,7 +635,9 @@
       if (cfg.nonce) el.nonce = cfg.nonce; // the VS Code webview's CSP only runs scripts carrying its nonce
       el.onload = () => {
         const light = document.body.classList.contains('vscode-light');
-        window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: light ? 'default' : 'dark', fontFamily: getComputedStyle(document.body).fontFamily });
+        // Dark diagrams take the panel's violet palette instead of Mermaid's stock grey-green.
+        const dark = { primaryColor: '#2a2436', primaryBorderColor: '#a78bfa', primaryTextColor: '#ece8f3', secondaryColor: '#221e2a', tertiaryColor: '#19161f', lineColor: '#cfc8da', textColor: '#ece8f3', actorBkg: '#2a2436', actorBorder: '#a78bfa', actorTextColor: '#ece8f3', signalColor: '#cfc8da', signalTextColor: '#ece8f3', noteBkgColor: '#332d3e', noteTextColor: '#ece8f3', noteBorderColor: '#8b5cf6' };
+        window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: light ? 'default' : 'base', themeVariables: light ? undefined : dark, fontFamily: getComputedStyle(document.body).fontFamily });
         resolve(window.mermaid);
       };
       el.onerror = reject;
