@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Watches more than Claude Code: Codex CLI, opencode, Cline, Roo Code and GitHub Copilot Chat sessions show up too, each labelled when more than one agent is about.
+- A violet theme across the panel, the menu bar and the icons, with one colour per state: violet at work, orchid needs you, periwinkle your move.
+- Monty now speaks like the monocled butler it is. The facts are unchanged; the manners are new.
+- Mermaid diagrams follow the theme.
+
 ## 0.2.0
 
 First public release.
