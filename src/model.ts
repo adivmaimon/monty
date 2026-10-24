@@ -81,15 +81,18 @@ export class SessionModel {
   asksPermission = true;
   /** The model is known to have a 1M context window. */
   bigContext = false;
+  /** The model's context window, when the tool records it (Codex, Copilot). */
+  window?: number;
   /** Repo name when there is no cwd (the adapter knows how its tool names folders). */
   repoFallback = '';
   inUse?: Session['inUse'];
   todos: Todo[] = [];
-  /** Which tool the session is from, and its name in state reasons ("Claude asked you a question"). */
+  /** Which tool the session is from, and its name in state reasons ("Claude has a question for you"). */
   agent: AgentTool = 'claude-code';
   agentName = 'Claude';
 
   private titles: Partial<Record<TitleSource, string>> = {};
+  private needsInput?: string;
   private lastStop: string | null = null;
   private pending = new Map<string, Pending>();
   private sidechainPending = new Set<string>();
@@ -158,6 +161,7 @@ export class SessionModel {
   /** How the latest reply ended: 'end_turn', 'tool_use', or null while it is still streaming. */
   stop(reason: string | null): void {
     this.lastStop = reason;
+    this.needsInput = undefined;
     // A finished turn has nothing in flight. Interrupted or queued-over tool calls
     // sometimes never get a result; without this they look stuck forever.
     if (reason === 'end_turn') this.pending.clear();
@@ -165,6 +169,7 @@ export class SessionModel {
 
   /** The person sent a new prompt: it answers anything the agent was waiting on. */
   promptSent(): void {
+    this.needsInput = undefined;
     this.pending.clear();
     this.lastStop = null;
   }
@@ -175,8 +180,10 @@ export class SessionModel {
     this.lastStop = 'interrupted';
   }
 
-  toolStart(id: string, name: string, input: Json, at: number, time: string): void {
-    const act = describeTool(name, input, this.cwd, time);
+  /** `label` replaces the described activity line, for tools whose own message says it better. */
+  toolStart(id: string, name: string, input: Json, at: number, time: string, label?: string): void {
+    const described = describeTool(name, input, this.cwd, time);
+    const act = described && label ? { ...described, text: label } : described;
     const p: Pending = { name, at, testCommand: name === 'Bash' && isTestCommand(input.command), activity: act };
     const snippets = editSnippets(name, input);
     if (act?.file && snippets.length) p.edit = { file: act.file, snippets };
@@ -208,6 +215,14 @@ export class SessionModel {
     }
     if (p.edit && !result.isError) this.lastEdit = { id, time, ...p.edit };
     return true;
+  }
+
+  /**
+   * The tool says outright that it is waiting on the person (Copilot Chat's NeedsInput):
+   * no timing guess needed. Cleared by the next stop() or prompt.
+   */
+  waitingForUser(reason: string): void {
+    this.needsInput = reason;
   }
 
   /** Subagent tool calls, which only count towards "subagents running". */
@@ -284,7 +299,7 @@ export class SessionModel {
     const { state, reason } = this.deriveState(nowMs, todos.length, done);
     // A session past the default window must be running a larger one, so assume 1M
     // rather than show 300%.
-    const window = this.bigContext || this.contextTokens > this.opts.contextWindow ? 1_000_000 : this.opts.contextWindow;
+    const window = this.window ?? (this.bigContext || this.contextTokens > this.opts.contextWindow ? 1_000_000 : this.opts.contextWindow);
     const agents = [...this.pending.values()].filter((p) => p.name === 'Agent' || p.name === 'Task').length;
     const nowAct = this.activity.find((a) => a.kind !== 'prompt');
     const cwd = this.cwd;
@@ -318,8 +333,9 @@ export class SessionModel {
 
   private deriveState(nowMs: number, total: number, done: number): { state: SessionState; reason: string } {
     const quietMs = nowMs - this.lastEventMs;
+    if (this.needsInput) return { state: 'needs_input', reason: this.needsInput };
     for (const p of this.pending.values()) {
-      if (ASKING_TOOLS.has(p.name)) return { state: 'needs_input', reason: p.name === 'ExitPlanMode' ? 'Plan ready for your approval' : `${this.agentName} asked you a question` };
+      if (ASKING_TOOLS.has(p.name)) return { state: 'needs_input', reason: p.name === 'ExitPlanMode' ? 'A plan awaits your approval' : `${this.agentName} has a question for you` };
     }
     if (this.pending.size > 0) {
       const oldest = Math.min(...[...this.pending.values()].map((p) => p.at));
@@ -328,21 +344,21 @@ export class SessionModel {
       // tools and modes that ask before running things.
       const wait = this.opts.permissionMs;
       if (this.asksPermission && nowMs - oldest > wait && quietMs > wait && first && first.name !== 'Task' && first.name !== 'Agent') {
-        return { state: 'needs_input', reason: `Probably waiting for permission: ${first.activity?.text ?? first.name}` };
+        return { state: 'needs_input', reason: `Probably awaiting your permission: ${first.activity?.text ?? first.name}` };
       }
       const what = first?.activity?.text ?? 'Working';
       // Say how long, so a quiet minute reads as a slow command rather than a stall.
       const ran = nowMs - oldest;
-      return { state: 'working', reason: ran >= 60_000 ? `${what} (running ${Math.floor(ran / 60_000)} min)` : what };
+      return { state: 'working', reason: ran >= 60_000 ? `${what} (at it for ${Math.floor(ran / 60_000)} min)` : what };
     }
-    if (quietMs > this.opts.idleMs) return { state: 'idle', reason: 'No activity for a while' };
+    if (quietMs > this.opts.idleMs) return { state: 'idle', reason: 'Not a peep for some time' };
     if (this.lastStop === 'end_turn' || this.lastStop === 'stop_sequence') {
-      if (total > 0 && done === total) return { state: 'done', reason: 'All tasks complete' };
-      return { state: 'your_turn', reason: `${this.agentName} finished its turn` };
+      if (total > 0 && done === total) return { state: 'done', reason: 'Every task done. Splendid.' };
+      return { state: 'your_turn', reason: `${this.agentName} has finished and awaits your reply` };
     }
-    if (this.lastStop === 'interrupted') return { state: 'your_turn', reason: 'You interrupted' };
-    if (quietMs > 90_000) return { state: 'your_turn', reason: 'Quiet' };
-    return { state: 'working', reason: 'Thinking' };
+    if (this.lastStop === 'interrupted') return { state: 'your_turn', reason: 'You interrupted. Quite right.' };
+    if (quietMs > 90_000) return { state: 'your_turn', reason: 'Gone rather quiet' };
+    return { state: 'working', reason: 'Thinking, one presumes' };
   }
 }
 

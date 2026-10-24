@@ -5,6 +5,10 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Config } from './config.js';
 import { claudeAdapter } from './agents/claude.js';
+import { opencodeAdapter } from './agents/opencode.js';
+import { copilotAdapter } from './agents/copilot.js';
+import { codexAdapter } from './agents/codex.js';
+import { clineAdapter, rooAdapter } from './agents/cline.js';
 import type { AgentAdapter, SessionSource } from './agents/types.js';
 import { listRepos, scanRepo } from './projects.js';
 import { hasSetup, readSetup } from './setup.js';
@@ -18,7 +22,7 @@ const MAX_SESSIONS = 8;
 const STATE_ORDER: Record<Session['state'], number> = { needs_input: 0, working: 1, your_turn: 2, done: 3, idle: 4 };
 
 /** Every tool Monty reads sessions from. */
-export const ADAPTERS: AgentAdapter[] = [claudeAdapter];
+export const ADAPTERS: AgentAdapter[] = [claudeAdapter, opencodeAdapter, codexAdapter, clineAdapter, rooAdapter, copilotAdapter];
 
 export class MontyStore {
   /** Live sessions, keyed "<tool>:<key>". */
@@ -64,7 +68,7 @@ export class MontyStore {
   discover(nowMs = Date.now()): void {
     const seen = new Set<string>();
     for (const a of this.adapters) {
-      if (this.broken.has(a.tool)) continue;
+      if (this.broken.has(a.tool) || !this.cfg.agents.has(a.tool)) continue;
       try {
         for (const key of a.live(this.cfg, nowMs)) {
           const k = `${a.tool}:${key}`;

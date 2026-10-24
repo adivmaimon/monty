@@ -85,7 +85,7 @@ export function describeTool(name: string, input: Input, cwd: string, time: stri
     case 'AskUserQuestion':
       return a('ask', 'Asked you a question');
     case 'ExitPlanMode':
-      return a('ask', 'Plan ready for your approval');
+      return a('ask', 'A plan awaits your approval');
     case 'TodoWrite':
     case 'TaskCreate':
     case 'TaskUpdate':
