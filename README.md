@@ -6,8 +6,6 @@ Monty watches sessions from Claude Code, Codex CLI, opencode, Cline, Roo Code an
 
 **Install:** search "Monty" in the VS Code Extensions view, or see the [extension's page](vscode/README.md) for what it does, privacy and settings.
 
-## A look around
-
 <table>
   <tr>
     <th colspan="2">The details view</th>
@@ -31,7 +29,7 @@ Monty watches sessions from Claude Code, Codex CLI, opencode, Cline, Roo Code an
     <td align="center" valign="top"><img alt="The menu bar dropdown, with a Codex session that needs you and a Claude Code session at work" src="docs/screenshots/menubar.png" width="386"></td>
   </tr>
   <tr>
-    <th colspan="2">Plans, readable</th>
+    <th colspan="2">Markdown in human format</th>
   </tr>
   <tr>
     <td colspan="2">Any markdown file opens as a page you can actually read: phases with progress, collapsible sections, diagrams, and file references that open in the editor.</td>
