@@ -166,7 +166,7 @@ test('SessionModel from events alone: a tool call, a test run, tokens, end of tu
   m.stop('end_turn');
   const s = m.snapshot(Date.parse('2026-10-23T10:00:05Z'));
   assert.equal(s.state, 'your_turn');
-  assert.equal(s.stateReason, 'opencode finished its turn');
+  assert.equal(s.stateReason, 'opencode has finished and awaits your reply');
   assert.equal(s.title, 'Fix the login');
   assert.deepEqual(s.touched.map((f) => [f.path, f.edits, f.plus]), [['src/a.ts', 1, 2]]);
   assert.equal(s.lastTest?.ok, true);

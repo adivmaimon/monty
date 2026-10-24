@@ -162,7 +162,7 @@ test('real log: 1M window comes from the model attachment, not message.model', (
 test('real log: pending AskUserQuestion reads as needs_input', () => {
   const s = real(95).snapshot(Date.parse('2026-09-25T11:33:40Z'));
   assert.equal(s.state, 'needs_input');
-  assert.equal(s.stateReason, 'Claude asked you a question');
+  assert.equal(s.stateReason, 'Claude has a question for you');
 });
 
 test('real log: in auto mode a quiet Bash is working however long it runs, and says for how long', () => {
@@ -170,7 +170,7 @@ test('real log: in auto mode a quiet Bash is working however long it runs, and s
   assert.equal(t.snapshot(Date.parse('2026-09-25T11:33:00Z')).state, 'working');
   const later = t.snapshot(Date.parse('2026-09-25T11:40:00Z'));
   assert.equal(later.state, 'working');
-  assert.match(later.stateReason, /running 7 min/);
+  assert.match(later.stateReason, /at it for 7 min/);
 });
 
 test('real log: activity paths are relative to the repo', () => {
@@ -192,7 +192,7 @@ test('an interrupt ends the turn', () => {
   t.feedLine(JSON.stringify({ type: 'user', timestamp: '2026-10-23T10:00:03Z', message: { content: [{ type: 'text', text: '[Request interrupted by user]' }] } }));
   const s = t.snapshot(Date.parse('2026-10-23T10:00:05Z'));
   assert.equal(s.state, 'your_turn');
-  assert.equal(s.stateReason, 'You interrupted');
+  assert.equal(s.stateReason, 'You interrupted. Quite right.');
   assert.equal(s.title, 'Untitled session');
 });
 

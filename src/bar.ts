@@ -17,10 +17,10 @@ export interface BarSummary {
 
 const STATE_LABEL: Record<Session['state'], string> = {
   needs_input: 'Needs you',
-  working: 'Working',
-  your_turn: 'Your turn',
-  done: 'Done',
-  idle: 'Idle',
+  working: 'At work',
+  your_turn: 'Your move',
+  done: 'All done',
+  idle: 'Resting',
 };
 
 // SF Symbols per state, with colours that match the mockup.
@@ -85,7 +85,7 @@ export function swiftbarText(state: MontyState, port: number): string {
   out.push('---');
 
   const live = state.sessions.filter((x) => x.state !== 'idle');
-  if (!live.length) out.push(`No Claude Code sessions running | color=gray href=${show()}`);
+  if (!live.length) out.push(`No sessions at present | color=gray href=${show()}`);
   for (const x of live) {
     const [sym, col] = STATE_ICON[x.state];
     const { done, total } = x.progress;
