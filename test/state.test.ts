@@ -173,3 +173,15 @@ test('SessionModel from events alone: a tool call, a test run, tokens, end of tu
   assert.equal(s.lastEdit?.file, 'src/a.ts');
   assert.equal(s.context.tokens, 40000);
 });
+
+test('the headline follows the latest prompt that says something, not the first one', () => {
+  const m = new SessionModel('/x.jsonl', 's1');
+  m.title('tool', 'Set up the repo');
+  assert.equal(m.promptTitle('Set up the repo with a test runner'), true);
+  assert.equal(m.snapshot(0).title, 'Set up the repo', "one prompt: the tool's own title");
+  assert.equal(m.promptTitle('yes'), false);
+  assert.equal(m.promptTitle('looks good'), false);
+  assert.equal(m.snapshot(0).title, 'Set up the repo');
+  m.promptTitle('Now fix the headline in the sidebar');
+  assert.equal(m.snapshot(0).title, 'Now fix the headline in the sidebar');
+});

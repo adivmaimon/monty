@@ -162,7 +162,7 @@ export class CodexTracker implements SessionSource {
   private prompt(time: string, text: string): void {
     const t = text.replace(/\s+/g, ' ').trim();
     if (!t || INJECTED.test(t)) return;
-    if (!this.m.hasTitle('prompt')) this.m.title('prompt', t.slice(0, 90));
+    this.m.promptTitle(t);
     this.m.promptActivity(time, t.slice(0, 90));
     this.m.promptSent();
     this.m.stop(null);

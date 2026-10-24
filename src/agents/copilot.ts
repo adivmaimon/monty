@@ -184,7 +184,7 @@ export function replayChat(chat: Json, file: string, folder: string): SessionMod
     const at = m.seen(time);
     const prompt = typeof r.message?.text === 'string' ? r.message.text.replace(/\s+/g, ' ').trim() : '';
     if (prompt) {
-      if (!m.hasTitle('prompt')) m.title('prompt', prompt.slice(0, 90));
+      m.promptTitle(prompt);
       m.promptActivity(time, prompt.slice(0, 90));
     }
     m.promptSent();

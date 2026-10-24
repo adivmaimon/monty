@@ -58,6 +58,9 @@ const GAUGE_FULL_PER_MIN = 25_000;
 /** Which title wins when a session has several: the tool's own, the first prompt, a command, a summary. */
 export type TitleSource = 'tool' | 'prompt' | 'command' | 'summary';
 const TITLE_ORDER: TitleSource[] = ['tool', 'prompt', 'command', 'summary'];
+// A headline needs a few words: "yes", "commit", "looks good" are replies, not new work.
+const MIN_TITLE_WORDS = 3;
+const MIN_TITLE_CHARS = 12;
 
 export class SessionModel {
   readonly opts: SessionOptions;
@@ -92,6 +95,8 @@ export class SessionModel {
   agentName = 'Claude';
 
   private titles: Partial<Record<TitleSource, string>> = {};
+  /** Prompts that said something (see promptTitle). */
+  private prompts = 0;
   private needsInput?: string;
   private lastStop: string | null = null;
   private pending = new Map<string, Pending>();
@@ -135,6 +140,22 @@ export class SessionModel {
 
   title(source: TitleSource, text: string): void {
     this.titles[source] = text;
+  }
+
+  /**
+   * A prompt as the headline. The latest one that says something wins: a long session
+   * moves on to new work, and its first prompt (or the tool's own title, which Claude
+   * Code writes once and never changes) went stale. After the first, "yes", "execute" and
+   * other short replies are not new work and leave the headline alone. Returns whether it counted.
+   */
+  promptTitle(text: string): boolean {
+    const t = text.replace(/\s+/g, ' ').trim();
+    if (!t) return false;
+    // The first prompt is the headline whatever it says: anything beats "Untitled session".
+    if (this.titles.prompt && (t.length < MIN_TITLE_CHARS || t.split(' ').length < MIN_TITLE_WORDS)) return false;
+    this.titles.prompt = t.slice(0, 90);
+    this.prompts++;
+    return true;
   }
 
   hasTitle(source: TitleSource): boolean {
@@ -303,7 +324,9 @@ export class SessionModel {
     const agents = [...this.pending.values()].filter((p) => p.name === 'Agent' || p.name === 'Task').length;
     const nowAct = this.activity.find((a) => a.kind !== 'prompt');
     const cwd = this.cwd;
-    const title = TITLE_ORDER.map((k) => this.titles[k]).find(Boolean);
+    // The tool's title describes the first task; once there is a later one, the prompt is fresher.
+    const order: TitleSource[] = this.prompts > 1 ? ['prompt', 'tool', 'command', 'summary'] : TITLE_ORDER;
+    const title = order.map((k) => this.titles[k]).find(Boolean);
     return {
       id: this.id,
       agent: this.agent,

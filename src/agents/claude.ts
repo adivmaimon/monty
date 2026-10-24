@@ -227,19 +227,18 @@ export class SessionTracker {
 
   private takeTitle(text: string, e: Json): void {
     const m = this.m;
-    if (m.hasTitle('prompt') || e.isMeta) return;
+    if (e.isMeta || e.isCompactSummary) return;
     const t = text.trim();
     // A session opened with a slash command has no plain prompt, and its ai-title can
     // take a while to appear; "/execute plan-name" beats "Untitled session" meanwhile.
     const cmd = /<command-name>([^<]*)<\/command-name>/.exec(t);
-    if (cmd && !m.hasTitle('command')) {
+    if (cmd && !m.hasTitle('command') && !m.hasTitle('prompt')) {
       const args = /<command-args>([^<]*)<\/command-args>/.exec(t)?.[1]?.trim();
       m.title('command', `${cmd[1]}${args ? ` ${args}` : ''}`.slice(0, 90));
     }
-    if (!t || t.startsWith('<') || t.startsWith('Caveat:')) return;
-    const title = t.replace(/\s+/g, ' ').slice(0, 90);
-    m.title('prompt', title);
-    m.promptActivity(e.timestamp ?? '', title);
+    if (!t || t.startsWith('<') || t.startsWith('Caveat:') || t.startsWith('This session is being continued')) return;
+    m.promptTitle(t);
+    m.promptActivity(e.timestamp ?? '', t.replace(/\s+/g, ' ').slice(0, 90));
   }
 
   private applyTodos(name: string, input: Json): void {

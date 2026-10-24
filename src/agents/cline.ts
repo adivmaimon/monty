@@ -129,7 +129,7 @@ export function replayTask(msgs: Json[], o: { file: string; id: string; cwd: str
     m.promptSent();
     prompted = true;
     if (!t) return;
-    if (!m.hasTitle('prompt')) m.title('prompt', t.slice(0, 90));
+    m.promptTitle(t);
     m.promptActivity(time, t.slice(0, 90));
   };
   msgs.forEach((msg, i) => {
@@ -284,7 +284,7 @@ export function replaySdkSession(manifest: Json, data: Json, file: string): Sess
       const text = blocks(msg.content).filter((b) => b?.type === 'text').map((b) => String(b.text ?? '')).join(' ').replace(/<\/?(task|user_message)>/g, '').replace(/\s+/g, ' ').trim();
       if (text && !text.startsWith('<')) {
         m.promptSent();
-        if (!m.hasTitle('prompt')) m.title('prompt', text.slice(0, 90));
+        m.promptTitle(text);
         m.promptActivity(time, text.slice(0, 90));
       }
       m.stop(null);

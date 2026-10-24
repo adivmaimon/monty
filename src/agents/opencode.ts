@@ -269,7 +269,7 @@ export function replayModel(s: OcSession, file: string): SessionModel {
       const text = parts.filter((p) => p?.type === 'text' && !p.synthetic && !p.ignored && typeof p.text === 'string').map((p) => p.text).join(' ').trim();
       if (text) {
         const title = text.replace(/\s+/g, ' ').slice(0, 90);
-        if (!m.hasTitle('prompt')) m.title('prompt', title);
+        m.promptTitle(title);
         m.promptActivity(time, title);
       }
       m.promptSent();
