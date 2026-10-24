@@ -2,7 +2,10 @@
 # version in vscode/package.json (0.2.0) becomes
 #   - a GitHub Release with monty-<version>.vsix and Monty.zip (the signed, notarized
 #     menu bar app the extension downloads), and
-#   - the extension published to the VS Code Marketplace, and to Open VSX when OVSX_PAT is set.
+#   - the extension published to the VS Code Marketplace when VSCE_PAT is set, and to Open
+#     VSX when OVSX_PAT is set. Without VSCE_PAT, upload the .vsix from the release by hand
+#     at marketplace.visualstudio.com/manage (a token needs an Azure DevOps organization,
+#     which now needs an Azure subscription).
 # The release goes up before the Marketplace publish, so the app the new extension offers
 # is already downloadable when people get the update.
 #
@@ -11,7 +14,7 @@
 # signs and notarizes without releasing or publishing, and keeps the files as artifacts.
 #
 # Secrets: APPLE_CERT_P12_BASE64, APPLE_CERT_PASSWORD, APPLE_ID, APPLE_TEAM_ID,
-# APPLE_APP_SPECIFIC_PASSWORD, VSCE_PAT, and optionally OVSX_PAT.
+# APPLE_APP_SPECIFIC_PASSWORD, and optionally VSCE_PAT and OVSX_PAT.
 name: release
 
 on:
@@ -121,7 +124,11 @@ jobs:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
         run: |
-          npx --yes @vscode/vsce@3 publish --packagePath "monty-$VERSION.vsix" -p "$VSCE_PAT"
+          if [[ -n "$VSCE_PAT" ]]; then
+            npx --yes @vscode/vsce@3 publish --packagePath "monty-$VERSION.vsix" -p "$VSCE_PAT"
+          else
+            echo "::notice::No VSCE_PAT: upload monty-$VERSION.vsix from the GitHub Release at https://marketplace.visualstudio.com/manage"
+          fi
           if [[ -n "$OVSX_PAT" ]]; then
             npx --yes ovsx@0.10 publish "monty-$VERSION.vsix" -p "$OVSX_PAT"
           else
