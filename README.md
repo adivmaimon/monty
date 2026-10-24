@@ -8,15 +8,16 @@ Monty watches sessions from Claude Code, Codex CLI, opencode, Cline, Roo Code an
 
 ## A look around
 
-### The details view
-
-Everything about the session in one tab: where it is in the plan, what it's doing right now, context and tokens, the last test run, activity and files changed.
-
-![The details view: session, plan progress, what the agent is doing now, activity and files changed](docs/screenshots/details.png)
-
-### The sidebar and the menu bar
-
 <table>
+  <tr>
+    <th colspan="2">The details view</th>
+  </tr>
+  <tr>
+    <td colspan="2">Everything about the session in one tab: where it is in the plan, what it's doing right now, context and tokens, the last test run, activity and files changed.</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img alt="The details view: session, plan progress, what the agent is doing now, activity and files changed" src="docs/screenshots/details.png"></td>
+  </tr>
   <tr>
     <th width="50%">In VS Code's sidebar</th>
     <th width="50%">In the Mac menu bar</th>
@@ -29,13 +30,16 @@ Everything about the session in one tab: where it is in the plan, what it's doin
     <td align="center" valign="top"><img alt="The VS Code sidebar" src="docs/screenshots/sidebar.png" width="272"></td>
     <td align="center" valign="top"><img alt="The menu bar dropdown, with a Codex session that needs you and a Claude Code session at work" src="docs/screenshots/menubar.png" width="386"></td>
   </tr>
+  <tr>
+    <th colspan="2">Plans, readable</th>
+  </tr>
+  <tr>
+    <td colspan="2">Any markdown file opens as a page you can actually read: phases with progress, collapsible sections, diagrams, and file references that open in the editor.</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img alt="A plan in the readable view" src="docs/screenshots/plan.png"></td>
+  </tr>
 </table>
-
-### Plans, readable
-
-Any markdown file opens as a page you can actually read: phases with progress, collapsible sections, diagrams, and file references that open in the editor.
-
-![A plan in the readable view](docs/screenshots/plan.png)
 
 ## How it fits together
 
