@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1
+
+- Small fixes.
+
 ## 0.4.0
 
 - A session's progress bar only follows a plan it has opened or named, or the repo's only active plan. With several active plans Monty no longer guesses the newest.
