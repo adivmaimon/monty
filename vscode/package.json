@@ -2,7 +2,7 @@
   "name": "monty",
   "displayName": "Monty · Keep an eye on your AI",
   "description": "A discreet eye on your coding agent: live progress, the plan it's working through, and every file it touches, in VS Code and your Mac's menu bar.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "adivmaimon",
   "license": "MIT",
   "icon": "media/icon.png",

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- The Marketplace page matches the GitHub README: same introduction and screenshot tour.
+
 ## 0.3.0
 
 - Watches more than Claude Code: Codex CLI, opencode, Cline, Roo Code and GitHub Copilot Chat sessions show up too, each labelled when more than one agent is about.

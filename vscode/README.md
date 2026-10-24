@@ -1,10 +1,41 @@
-# Monty
+# Monty · Keep an eye on your AI
 
-**A discreet eye on your coding agent.** Monty shows what your session is doing right now, how far through its plan it is, and which files it has touched, so you needn't read the transcript. On a Mac, a monocle in the menu bar taps the glass when a session needs you.
+Tired of reading markdown? Me too 🥱
 
-Works with Claude Code, Codex CLI, opencode, Cline, Roo Code and GitHub Copilot Chat.
+Monty watches sessions from Claude Code, Codex CLI, opencode, Cline, Roo Code and Copilot Chat, along with the plans in your repos, and reports progress in VS Code and the Mac menu bar. View your AI coding progress with nifty visual widgets and read markdown files like a human. Monty is 100% local and read only.
 
-![The details view: session, plan progress, what the agent is doing now, activity and files changed](https://raw.githubusercontent.com/adivmaimon/monty/main/docs/screenshots/details.png)
+<table>
+  <tr>
+    <th colspan="2">The details view</th>
+  </tr>
+  <tr>
+    <td colspan="2">Everything about the session in one tab: where it is in the plan, what it's doing right now, context and tokens, the last test run, activity and files changed.</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img alt="The details view: session, plan progress, what the agent is doing now, activity and files changed" src="https://raw.githubusercontent.com/adivmaimon/monty/main/docs/screenshots/details.png"></td>
+  </tr>
+  <tr>
+    <th width="50%">In VS Code's sidebar</th>
+    <th width="50%">In the Mac menu bar</th>
+  </tr>
+  <tr>
+    <td>The short version for the open repo: state, progress, what it's doing, context.</td>
+    <td>Every live session at a glance, from any app. The monocle taps the glass when one needs you.</td>
+  </tr>
+  <tr>
+    <td align="center" valign="top"><img alt="The VS Code sidebar" src="https://raw.githubusercontent.com/adivmaimon/monty/main/docs/screenshots/sidebar.png" width="272"></td>
+    <td align="center" valign="top"><img alt="The menu bar dropdown, with a Codex session that needs you and a Claude Code session at work" src="https://raw.githubusercontent.com/adivmaimon/monty/main/docs/screenshots/menubar.png" width="386"></td>
+  </tr>
+  <tr>
+    <th colspan="2">Markdown in human format</th>
+  </tr>
+  <tr>
+    <td colspan="2">Any markdown file opens as a page you can actually read: phases with progress, collapsible sections, diagrams, and file references that open in the editor.</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img alt="A plan in the readable view" src="https://raw.githubusercontent.com/adivmaimon/monty/main/docs/screenshots/plan.png"></td>
+  </tr>
+</table>
 
 ## What you get
 
@@ -14,13 +45,6 @@ Works with Claude Code, Codex CLI, opencode, Cline, Roo Code and GitHub Copilot 
 - **Follow mode** (off until you turn it on). Each file the agent changes opens beside your editor with the new lines highlighted for a moment.
 - **Explorer dots** on files the session changed (●) or read (·).
 - **A Mac menu bar app** (optional). The monocle's rim fills as the plan progresses, a dot appears when a session needs you, and a notification says so too. Monty offers to install it the first time you open VS Code on a Mac.
-
-<p>
-  <img alt="The sidebar" src="https://raw.githubusercontent.com/adivmaimon/monty/main/docs/screenshots/sidebar.png" width="300">
-  <img alt="The menu bar dropdown, with a Codex session that needs you and a Claude Code session at work" src="https://raw.githubusercontent.com/adivmaimon/monty/main/docs/screenshots/menubar.png" width="380">
-</p>
-
-![A plan in the readable view](https://raw.githubusercontent.com/adivmaimon/monty/main/docs/screenshots/plan.png)
 
 ## Which agents
 
