@@ -343,7 +343,7 @@ function wire(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
           selection: line !== undefined ? new vscode.Range(line, 0, line, 0) : undefined,
         });
       } catch {
-        void vscode.window.showWarningMessage(`Monty: could not open ${m.path}`);
+        void vscode.window.showWarningMessage(`Monty couldn't open ${m.path}, I'm afraid.`);
       }
     }
     if (m.type === 'openDoc' && typeof m.file === 'string') openReadable(extUri, m.file);
@@ -469,7 +469,7 @@ class PanelProvider implements vscode.WebviewViewProvider {
 function updateStatus(item: vscode.StatusBarItem, state: State | null) {
   if (!state) {
     item.text = '$(eye-closed) Monty';
-    item.tooltip = 'Monty core is not running';
+    item.tooltip = "Monty's core isn't running. Off duty, it seems.";
     item.backgroundColor = undefined;
     return;
   }
@@ -477,12 +477,12 @@ function updateStatus(item: vscode.StatusBarItem, state: State | null) {
   const s = live[0];
   if (!s) {
     item.text = '$(eye) Monty';
-    item.tooltip = 'No Claude Code session in this repo';
+    item.tooltip = 'No session in this repo at present';
     item.backgroundColor = undefined;
     return;
   }
   const prog = s.progress.total ? `${s.progress.done}/${s.progress.total}` : s.plan?.label ?? '';
-  const what = s.state === 'needs_input' ? 'Needs you' : s.state === 'done' ? 'Done' : s.state === 'your_turn' ? 'Your turn' : s.now?.file ? path.basename(s.now.file) : 'Working';
+  const what = s.state === 'needs_input' ? 'Needs you' : s.state === 'done' ? 'All done' : s.state === 'your_turn' ? 'Your move' : s.now?.file ? path.basename(s.now.file) : 'Working';
   item.text = `${s.state === 'needs_input' ? '$(bell-dot)' : s.state === 'done' ? '$(check)' : '$(eye)'} ${[prog, what].filter(Boolean).join(' · ')}`;
   item.tooltip = `${s.title}\n${s.stateReason}${s.agent && s.agent !== 'claude-code' ? `\n${AGENT_NAMES[s.agent] ?? s.agent}` : ''}`;
   item.backgroundColor = s.state === 'needs_input' ? new vscode.ThemeColor('statusBarItem.warningBackground') : undefined;

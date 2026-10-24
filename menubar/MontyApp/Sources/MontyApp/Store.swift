@@ -124,14 +124,14 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         }
         let n = UNMutableNotificationContent()
         if kind == "needs_input" {
-            n.title = "\(s.repo) needs you"
+            n.title = "\(s.repo) requires your attention"
             n.body = s.stateReason
             n.sound = .default
         } else if kind == "done" {
-            n.title = "\(s.repo) is done"
+            n.title = "\(s.repo): all done"
             n.body = s.title
         } else {
-            n.title = "\(s.repo): tests failing"
+            n.title = "\(s.repo): the tests have taken a turn"
             n.body = s.lastTest?.summary ?? "Tests failing"
         }
         n.userInfo = ["repo": s.repoPath ?? s.cwd]

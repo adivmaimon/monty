@@ -1,14 +1,14 @@
-// The app icon, after the mockup's "Monty icon" board: a gold-rimmed monocle on a chain,
-// on a dark rounded square. Without it the bundle has no icon and notifications show a
+// The app icon, after the mockup's "Monty icon" board: a monocle on a chain, rimmed in
+// Monty's violet, on a dark violet-black rounded square. Without it the bundle has no icon and notifications show a
 // blank white tile beside their text. build.sh renders it to AppIcon.icns via --iconset.
 // Geometry is the board's 100-unit viewBox; small sizes use the board's simplified glyph.
 
 import AppKit
 
 enum AppIcon {
-    static let rim = NSColor(srgbRed: 0xe0 / 255, green: 0xa8 / 255, blue: 0x5a / 255, alpha: 1)
-    static let tile = NSColor(srgbRed: 0x1f / 255, green: 0x22 / 255, blue: 0x29 / 255, alpha: 1)
-    static let edge = NSColor(srgbRed: 0x34 / 255, green: 0x38 / 255, blue: 0x43 / 255, alpha: 1)
+    static let rim = NSColor(srgbRed: 0xb3 / 255, green: 0x9a / 255, blue: 0xfb / 255, alpha: 1)
+    static let tile = NSColor(srgbRed: 0x1a / 255, green: 0x16 / 255, blue: 0x22 / 255, alpha: 1)
+    static let edge = NSColor(srgbRed: 0x35 / 255, green: 0x2d / 255, blue: 0x44 / 255, alpha: 1)
 
     /// Draws into the current context, in a flipped 100x100 space.
     static func draw(small: Bool) {
@@ -46,7 +46,7 @@ enum AppIcon {
         stroke(chain, rim, small ? 7 : 3.4)
 
         if !small {
-            NSColor(srgbRed: 0x9f / 255, green: 0xb8 / 255, blue: 0xd1 / 255, alpha: 0.10).setFill()
+            NSColor(srgbRed: 0xc4 / 255, green: 0xb5 / 255, blue: 0xfd / 255, alpha: 0.10).setFill()
             circle(42, 40, 25).fill()
         }
         stroke(circle(42, 40, 25), rim, small ? 10 : 6)

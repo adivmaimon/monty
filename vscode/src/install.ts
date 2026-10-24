@@ -90,9 +90,9 @@ export async function installMenuBarApp(): Promise<void> {
   }
   try {
     const dest = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Monty menu bar app' }, installFromRelease);
-    void vscode.window.showInformationMessage(`Monty is in your menu bar. It starts and quits with VS Code. (Installed to ${dest.replace(os.homedir(), '~')})`);
+    void vscode.window.showInformationMessage(`Monty is now stationed in your menu bar, arriving and leaving with VS Code. (Installed to ${dest.replace(os.homedir(), '~')})`);
   } catch (e) {
-    void vscode.window.showErrorMessage(`Monty could not install the menu bar app: ${(e as Error).message}. Nothing was installed.`);
+    void vscode.window.showErrorMessage(`The menu bar app wouldn't install: ${(e as Error).message}. Nothing was changed.`);
   }
 }
 
@@ -108,14 +108,14 @@ export async function offerMenuBarApp(context: vscode.ExtensionContext, appSetti
     if (installed !== userAppPath()) return; // someone else's build (e.g. a local one): leave it
     const theirs = await appVersion(installed);
     if (!theirs || compareVersions(theirs, mine) >= 0) return;
-    const pick = await vscode.window.showInformationMessage(`A newer Monty menu bar app is available (${theirs} → ${mine}).`, 'Update', 'Not now');
+    const pick = await vscode.window.showInformationMessage(`A newer menu bar app is ready (${theirs} → ${mine}).`, 'Update', 'Not now');
     if (pick === 'Update') await installMenuBarApp();
     return;
   }
   const last = context.globalState.get<string | number>(OFFER_KEY);
   if (last === 'never' || (typeof last === 'number' && Date.now() - last < ASK_AGAIN_MS)) return;
   const pick = await vscode.window.showInformationMessage(
-    'Add Monty to your menu bar? A monocle shows progress and tells you when a session needs you, even when VS Code is in the background.',
+    'May Monty take up a post in your menu bar? A monocle there shows progress and taps the glass when a session needs you, even with VS Code in the background.',
     'Install',
     'Not now',
     "Don't ask again",
