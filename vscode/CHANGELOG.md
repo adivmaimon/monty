@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
 - A session's progress bar only follows a plan it has opened or named, or the repo's only active plan. With several active plans Monty no longer guesses the newest.
 - The menu bar names the plan beside its progress.
