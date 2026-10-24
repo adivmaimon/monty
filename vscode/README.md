@@ -10,7 +10,7 @@ Works with Claude Code, Codex CLI, opencode, Cline, Roo Code and GitHub Copilot 
 
 - **A sidebar for the open repo.** The session's state (at work, needs you, your move, all done), the plan it's working through as a progress bar, what it's doing right now, context used, and whether the last test run passed.
 - **A details view** with the lot: activity, files changed, every plan in the repo, and the repo's AI setup (instructions files, the rules in them, skills, commands, guardrails).
-- **Plans you can read.** Every `.md` opens in a readable view: collapsible sections, phases with progress, Mermaid diagrams, and file references that open in the editor. It updates live as the agent ticks off phases.
+- **Plans you can read.** Every `.md` opens in a readable view (search results and Go to Line still open the text at the line): collapsible sections, phases with progress, Mermaid diagrams, and file references that open in the editor. It updates live as the agent ticks off phases.
 - **Follow mode** (off until you turn it on). Each file the agent changes opens beside your editor with the new lines highlighted for a moment.
 - **Explorer dots** on files the session changed (●) or read (·).
 - **A Mac menu bar app** (optional). The monocle's rim fills as the plan progresses, a dot appears when a session needs you, and a notification says so too. Monty offers to install it the first time you open VS Code on a Mac.
@@ -59,6 +59,7 @@ When the agent keeps a task list (Claude Code's todos, Codex's plan, Cline's foc
 | `monty.projectRoots` | `[]` | Folders whose repos are always watched, e.g. `~/Projects`. Empty: just the repos open in VS Code. |
 | `monty.appPath` | `/Applications/Monty.app` | The menu bar app to start with VS Code. Empty never starts it. |
 | `monty.port` | `4747` | Port of the local server. |
+| `monty.readableMarkdown` | `true` | Open `.md` files in the readable view. Opens that land on a line (a search result, Go to Line) stay as text so you can edit there. |
 
 Commands: **Monty: Open details**, **Monty: Toggle follow mode**, **Open readable view** (on any `.md`).
 

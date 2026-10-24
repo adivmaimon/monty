@@ -10,6 +10,7 @@ import * as path from 'node:path';
 import { execFile, spawn } from 'node:child_process';
 import { changedLineRange, hunkRanges } from './diff';
 import { findApp, installMenuBarApp, offerMenuBarApp } from './install';
+import { ReadableByDefault } from './readable';
 
 interface Session {
   id: string;
@@ -45,7 +46,7 @@ function cfg() {
   const coreDir = home(c.get<string>('coreDir', '')) || path.join(extensionRoot, 'core');
   // Empty: find the menu bar app in /Applications or ~/Applications (install.ts findApp).
   const appPath = home(c.get<string>('appPath', ''));
-  return { coreDir, port: c.get<number>('port', 4747), appPath, menuBar: c.get<boolean>('menuBarApp', true) };
+  return { coreDir, port: c.get<number>('port', 4747), appPath, menuBar: c.get<boolean>('menuBarApp', true), readable: c.get<boolean>('readableMarkdown', true) };
 }
 
 /**
@@ -350,6 +351,7 @@ function wire(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
     if (m.type === 'openDetails') openDetails(extUri);
     if (m.type === 'setFollow') setFollow(!!m.on);
     if (m.type === 'editAsText' && typeof m.file === 'string') {
+      readable?.keepAsText(vscode.Uri.file(m.file));
       void vscode.commands.executeCommand('vscode.openWith', vscode.Uri.file(m.file), 'default', { preview: false });
     }
     if (m.type === 'getDoc' && typeof m.file === 'string') {
@@ -385,7 +387,7 @@ function openReadable(extUri: vscode.Uri, file: string) {
   const existing = docPanels.get(file);
   if (existing) return existing.reveal();
   const name = latest?.projects.find((p) => p.file === file)?.name ?? path.basename(file);
-  const panel = vscode.window.createWebviewPanel('monty.doc', name, vscode.ViewColumn.Active, { enableScripts: true, retainContextWhenHidden: true });
+  const panel = vscode.window.createWebviewPanel('monty.doc', name, vscode.ViewColumn.Active, { enableScripts: true, retainContextWhenHidden: true, enableFindWidget: true });
   panel.iconPath = tabIcon(extUri);
   const webview = panel.webview;
   const sub = wire(webview, extUri, { host: true, mode: 'doc', file, repo: repoRoot() });
@@ -412,6 +414,9 @@ function openReadable(extUri: vscode.Uri, file: string) {
   });
 }
 
+/** Plain opens of .md files swap to this (readable.ts); opens at a line stay text. */
+let readable: ReadableByDefault | undefined;
+
 /** The readable view for every .md file. "Edit" in its toolbar reopens the file as text. */
 class MarkdownEditor implements vscode.CustomTextEditorProvider {
   constructor(private extUri: vscode.Uri) {}
@@ -424,6 +429,7 @@ class MarkdownEditor implements vscode.CustomTextEditorProvider {
       if (e.document.uri.toString() === document.uri.toString()) post(webview, { type: 'docText', text: e.document.getText() });
     });
     panel.onDidDispose(() => {
+      readable?.readableClosed(document.uri);
       webviews.delete(webview);
       sub.dispose();
       change.dispose();
@@ -559,7 +565,8 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(item);
 
   context.subscriptions.push(
-    vscode.window.registerCustomEditorProvider('monty.markdown', new MarkdownEditor(extUri), { webviewOptions: { retainContextWhenHidden: true } }),
+    vscode.window.registerCustomEditorProvider('monty.markdown', new MarkdownEditor(extUri), { webviewOptions: { retainContextWhenHidden: true, enableFindWidget: true } }),
+    (readable = new ReadableByDefault(() => cfg().readable)),
   );
   context.subscriptions.push(vscode.window.registerUriHandler({ handleUri: (uri) => handleUri(extUri, uri) }));
 

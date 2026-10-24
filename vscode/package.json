@@ -133,6 +133,11 @@
           "default": "",
           "description": "Where the menu bar app is. Empty: /Applications/Monty.app or ~/Applications/Monty.app, wherever it is installed."
         },
+        "monty.readableMarkdown": {
+          "type": "boolean",
+          "default": true,
+          "description": "Open markdown files in Monty's readable view. Opens that land on a line (a search result, Go to Line, a link to a line) stay as text, so you can edit there."
+        },
         "monty.menuBarApp": {
           "type": "boolean",
           "default": true,
@@ -149,7 +154,7 @@
             "filenamePattern": "*.md"
           }
         ],
-        "priority": "default"
+        "priority": "option"
       }
     ]
   },
