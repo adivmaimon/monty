@@ -1,11 +1,10 @@
-# Tests on every push and pull request, on the three systems the extension runs on.
-# The menu bar app only builds on macOS.
+# Tests on the three systems the extension runs on. The menu bar app only builds on macOS.
+# Manual only (Actions > check > Run workflow): the account is on GitHub's free minutes,
+# and macOS runners count ten times over.
 name: check
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   test:

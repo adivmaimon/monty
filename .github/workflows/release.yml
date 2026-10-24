@@ -1,20 +1,20 @@
-# Release: a version tag (v0.2.0) becomes
+# Release: run by hand (Actions > release > Run workflow) with dry_run off, and the
+# version in vscode/package.json (0.2.0) becomes
 #   - a GitHub Release with monty-<version>.vsix and Monty.zip (the signed, notarized
 #     menu bar app the extension downloads), and
 #   - the extension published to the VS Code Marketplace, and to Open VSX when OVSX_PAT is set.
 # The release goes up before the Marketplace publish, so the app the new extension offers
 # is already downloadable when people get the update.
 #
-# Run it by hand with dry_run on to build, sign and notarize everything without releasing
-# or publishing; the files are kept as workflow artifacts.
+# Nothing triggers it automatically: the account is on GitHub's free minutes, and this
+# runs on macOS, which counts ten times over. With dry_run on (the default) it builds,
+# signs and notarizes without releasing or publishing, and keeps the files as artifacts.
 #
 # Secrets: APPLE_CERT_P12_BASE64, APPLE_CERT_PASSWORD, APPLE_ID, APPLE_TEAM_ID,
 # APPLE_APP_SPECIFIC_PASSWORD, VSCE_PAT, and optionally OVSX_PAT.
 name: release
 
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
     inputs:
       dry_run:
