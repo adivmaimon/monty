@@ -1,6 +1,7 @@
 // The dropdown, after the "Menu bar app" mockup board: live sessions with rings and
 // expandable todos, active projects with phase segments, a footer. Colours are the
-// mockup's and match the web panel's state colours.
+// web panel's (web/style.css): violet for Monty and work, orchid for needs-you,
+// periwinkle for your turn, mint and rose only for passing and failing.
 
 import SwiftUI
 
@@ -8,40 +9,44 @@ extension Color {
     init(hex: UInt32, alpha: Double = 1) {
         self.init(.sRGB, red: Double(hex >> 16 & 0xff) / 255, green: Double(hex >> 8 & 0xff) / 255, blue: Double(hex & 0xff) / 255, opacity: alpha)
     }
-    static let bg = Color(hex: 0x1f2229)
-    static let line = Color(hex: 0x343843)
-    static let ink = Color(hex: 0xe8eaee)
-    static let soft = Color(hex: 0xc9ced6)
-    static let muted = Color(hex: 0xb4bac4)
-    static let faint = Color(hex: 0x9aa1ad)
-    static let accent = Color(hex: 0xe8a26a)
-    static let green = Color(hex: 0x3fb950)
-    static let blue = Color(hex: 0x6cb6ff)
+    static let bg = Color(hex: 0x1c1924)
+    static let line = Color(hex: 0x332d3e)
+    static let ink = Color(hex: 0xece8f3)
+    static let soft = Color(hex: 0xcfc8da)
+    static let muted = Color(hex: 0xb7b0c4)
+    static let faint = Color(hex: 0x9d96aa)
+    static let accent = Color(hex: 0xa78bfa)
+    static let accentStrong = Color(hex: 0x8b5cf6)
+    static let lilacHi = Color(hex: 0xe4dcff)
+    static let orchid = Color(hex: 0xf08bd8)
+    static let peri = Color(hex: 0x93a4f8)
+    static let ok = Color(hex: 0x7fd8c4)
+    static let rose = Color(hex: 0xfb7185)
 }
 
 enum StateStyle {
     static func color(_ s: String) -> Color {
         switch s {
-        case "needs_input": return Color(hex: 0xf0883e)
+        case "needs_input": return .orchid
         case "working": return .accent
-        case "your_turn": return .blue
-        case "done": return Color(hex: 0x56d364)
-        default: return Color(hex: 0x8b949e)
+        case "your_turn": return .peri
+        case "done": return .ok
+        default: return Color(hex: 0x8a8398)
         }
     }
     static func label(_ s: String) -> String {
         switch s {
-        case "needs_input": return "Needs your input"
-        case "working": return "Working"
-        case "your_turn": return "Your turn"
-        case "done": return "Done"
-        default: return "Idle"
+        case "needs_input": return "Needs you"
+        case "working": return "At work"
+        case "your_turn": return "Your move"
+        case "done": return "All done"
+        default: return "Resting"
         }
     }
 }
 
-/// The one progress bar, as in the web panel: a segment per phase or task, green done,
-/// amber current, grey to do. The menu bar icon keeps its monocle ring; the dropdown does not.
+/// The one progress bar, as in the web panel: a segment per phase or task, violet done,
+/// pale lilac current, dim to do. The menu bar icon keeps its monocle ring; the dropdown does not.
 struct SegBar: View {
     var colors: [Color]
     var height: CGFloat = 5
@@ -59,7 +64,7 @@ struct SegBar: View {
         guard total > 0 else { return [] }
         let n = min(total, 12)
         let on = total <= 12 ? done : Int((Double(done) / Double(total) * Double(n)).rounded())
-        return (0..<n).map { $0 < on ? .green : $0 == on && current ? .accent : .line }
+        return (0..<n).map { $0 < on ? .accentStrong : $0 == on && current ? .lilacHi : .line }
     }
 }
 
@@ -73,7 +78,7 @@ struct Speedo: View {
     var count: String
     var body: some View {
         let l = max(0, min(1, level))
-        let zone: Color = l >= 0.85 ? Color(hex: 0xff7b72) : l >= 0.5 ? .accent : .blue
+        let zone: Color = l >= 0.85 ? .rose : l >= 0.5 ? .accent : .peri
         ZStack(alignment: .bottom) {
             DialArc(level: 1).stroke(Color.line, style: StrokeStyle(lineWidth: 5, lineCap: .round))
             DialArc(level: l).stroke(zone, style: StrokeStyle(lineWidth: 5, lineCap: .round)).opacity(l > 0.005 ? 1 : 0)
@@ -182,7 +187,7 @@ struct Dropdown: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionTitle("LIVE SESSIONS").padding(.horizontal, 16).padding(.top, 4).padding(.bottom, 8)
             if live.isEmpty {
-                Text("No Claude Code sessions").foregroundStyle(Color.muted)
+                Text("No sessions at present").foregroundStyle(Color.muted)
                     .padding(.horizontal, 16).padding(.bottom, 12)
             }
             VStack(spacing: 8) {
@@ -240,8 +245,8 @@ struct Dropdown: View {
 
             if open { details(s) }
         }
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color(hex: 0x262a33)))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(s.state == "needs_input" ? color.opacity(0.55) : Color(hex: 0x3a3f4a)))
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color(hex: 0x241f2c)))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(s.state == "needs_input" ? color.opacity(0.55) : Color(hex: 0x3a3346)))
         .hoverable(radius: 10)
     }
 
@@ -261,7 +266,7 @@ struct Dropdown: View {
                     GeometryReader { g in
                         ZStack(alignment: .leading) {
                             Capsule().fill(Color.line)
-                            Capsule().fill(ctx.pct >= 75 ? Color(hex: 0xff7b72) : ctx.pct >= 50 ? Color.accent : Color.blue).frame(width: g.size.width * CGFloat(ctx.pct) / 100)
+                            Capsule().fill(ctx.pct >= 75 ? Color.rose : ctx.pct >= 50 ? Color.accent : Color.peri).frame(width: g.size.width * CGFloat(ctx.pct) / 100)
                         }
                     }
                     .frame(height: 4)
@@ -278,7 +283,7 @@ struct Dropdown: View {
                 HStack {
                     if let el = elapsed(s.startedAt) { Text(el == "just now" ? "Started just now" : "Started \(el) ago") }
                     Spacer()
-                    if let t = s.lastTest { Text(t.ok ? "Tests passing" : "Tests failing").foregroundStyle(t.ok ? Color.green : Color(hex: 0xff7b72)) }
+                    if let t = s.lastTest { Text(t.ok ? "Tests passing" : "Tests failing").foregroundStyle(t.ok ? Color.ok : Color.rose) }
                 }
             }
             .font(.system(size: 11.5)).foregroundStyle(Color.muted)
@@ -296,11 +301,11 @@ struct Dropdown: View {
         let done = t.status == "completed", now = t.status == "in_progress"
         return HStack(spacing: 8) {
             Circle()
-                .strokeBorder(done ? .clear : now ? Color.accent : Color(hex: 0x5a606c), lineWidth: now ? 2 : 1.5)
-                .background(Circle().fill(done ? Color.green : .clear))
+                .strokeBorder(done ? .clear : now ? Color.accent : Color(hex: 0x575066), lineWidth: now ? 2 : 1.5)
+                .background(Circle().fill(done ? Color.accentStrong : .clear))
                 .frame(width: 12, height: 12)
             Text(t.text).strikethrough(done).lineLimit(1)
-                .foregroundStyle(done ? Color(hex: 0x8b929e) : now ? Color(hex: 0xf1f3f6) : Color.soft)
+                .foregroundStyle(done ? Color(hex: 0x8f889c) : now ? Color(hex: 0xf3f0f8) : Color.soft)
         }
         .font(.system(size: 12.5))
         .accessibilityElement(children: .combine)
@@ -308,7 +313,7 @@ struct Dropdown: View {
     }
 
     /// Only what the state tag does not already say: why it needs you, or what it is doing.
-    /// "Your turn" with "Claude finished its turn" under it says the same thing twice.
+    /// "Your move" with "Claude has finished and awaits your reply" under it says the same thing twice.
     private func statusLine(_ s: Session) -> String? {
         if s.state == "needs_input" { return s.stateReason }
         if s.state == "working" { return s.now?.text ?? s.stateReason }
@@ -376,7 +381,7 @@ struct Dropdown: View {
         .contentShape(Rectangle())
     }
 
-    /// Done phases green, the current one orange, the rest grey. Phase list when the
+    /// Done phases violet, the current one pale lilac, the rest dim. Phase list when the
     /// plan has one, else the progress counts (task-based plans, capped at 12 segments).
     private func segments(_ p: Project) -> [Color] {
         if p.progress.basis == "status" { return [] }
@@ -387,7 +392,7 @@ struct Dropdown: View {
             return SegBar.colors(done: p.progress.done, total: p.progress.total, current: true)
         }
         let current = flags.firstIndex(of: false)
-        return flags.enumerated().map { i, d in d ? .green : i == current ? .accent : .line }
+        return flags.enumerated().map { i, d in d ? .accentStrong : i == current ? .lilacHi : .line }
     }
 
     // MARK: footer
@@ -399,7 +404,7 @@ struct Dropdown: View {
             Button("Quit") { NSApp.terminate(nil) }.buttonStyle(Pill(filled: false, bordered: false))
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
-        .background(Color(hex: 0x1b1e25))
+        .background(Color(hex: 0x19161f))
         .overlay(alignment: .top) { Rectangle().fill(Color.line).frame(height: 1) }
     }
 }
@@ -413,8 +418,8 @@ struct Pill: ButtonStyle {
             .foregroundStyle(bordered ? Color.ink : Color.soft)
             .padding(.horizontal, 12)
             .frame(minHeight: 30)
-            .background(RoundedRectangle(cornerRadius: 8).fill(filled ? Color(hex: 0x2c303a) : .clear))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(bordered ? Color(hex: 0x3a3f4a) : .clear))
+            .background(RoundedRectangle(cornerRadius: 8).fill(filled ? Color(hex: 0x2c2638) : .clear))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(bordered ? Color(hex: 0x3a3346) : .clear))
             .hoverable()
             .opacity(configuration.isPressed ? 0.7 : 1)
             .contentShape(Rectangle())

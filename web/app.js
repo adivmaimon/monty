@@ -27,7 +27,7 @@
   const X = new Set();
   // Follow mode lives in the extension (per workspace); the page only shows and flips it.
   let follow = !!cfg.follow;
-  const followToggle = () => vscode ? `<label class="switch" title="Open each file Claude edits beside your editor, with the new lines highlighted"><input type="checkbox" data-follow ${follow ? 'checked' : ''}><span>Follow edits</span></label>` : '';
+  const followToggle = () => vscode ? `<label class="switch" title="Opens each file the agent edits beside yours, new lines highlighted, so you can look over its shoulder"><input type="checkbox" data-follow ${follow ? 'checked' : ''}><span>Follow edits</span></label>` : '';
   const xp = (key) => `expandable${X.has(key) ? ' expanded' : ''}" data-x="${esc(key)}`;
 
   if (vscode) document.body.classList.add('vscode');
@@ -39,10 +39,11 @@
   const AGENT_LABEL = { 'claude-code': 'Claude Code', opencode: 'opencode', codex: 'Codex', cline: 'Cline', roo: 'Roo Code', 'copilot-chat': 'Copilot' };
   const mixedAgents = () => !!state && state.sessions.some((x) => x.state !== 'idle' && x.agent && x.agent !== 'claude-code');
   const agentTag = (s) => (mixedAgents() && s.agent ? `<span class="agent">${esc(AGENT_LABEL[s.agent] || s.agent)}</span>` : '');
-  const STATE_LABEL = { working: 'Working', needs_input: 'Needs you', your_turn: 'Your turn', done: 'Done', idle: 'Idle' };
+  // Tags are read at a glance, so they stay short; the voice lives in the reasons beside them.
+  const STATE_LABEL = { working: 'At work', needs_input: 'Needs you', your_turn: 'Your move', done: 'All done', idle: 'Resting' };
   const KIND_LABEL = { read: 'Reading', edit: 'Editing', write: 'Writing', run: 'Running', test: 'Testing', search: 'Searching', web: 'Web', agent: 'Subagent', ask: 'Asking', plan: 'Planning', tool: 'Tool', prompt: 'You' };
   // Same colours as the activity dots (.k-* in style.css), for text.
-  const KIND_COLOR = { read: '#6cb6ff', edit: '#e8a26a', write: '#e8a26a', run: '#d2a8ff', test: '#d2a8ff', ask: '#f0883e', agent: '#79c0ff' };
+  const KIND_COLOR = { read: 'var(--peri)', edit: 'var(--accent)', write: 'var(--accent)', run: 'var(--lilac)', test: 'var(--lilac)', ask: 'var(--orchid)', agent: '#818cf8' };
 
   function ago(iso) {
     if (!iso) return '';
@@ -59,8 +60,8 @@
   const tidy = (t) => t.replace(/\S*\/\S*\/\S+/g, (m) => m.split('/').pop());
 
   // The one progress bar, used wherever progress shows (sessions, plans, plan view, and
-  // the menu bar dropdown draws the same): a segment per phase or task, green when done,
-  // amber for the current one, grey to do. Capped at 12 segments so long task lists stay legible.
+  // the menu bar dropdown draws the same): a segment per phase or task, violet when done,
+  // pale lilac for the current one, dim to do. Capped at 12 segments so long task lists stay legible.
   function segBar(done, total, current = true, cls = '') {
     if (total < 1) return '';
     const n = Math.min(total, 12);
@@ -104,7 +105,7 @@
   }
   const pendingDocs = new Map();
   function fetchDoc(file) {
-    if (!vscode) return fetch('/api/doc?file=' + encodeURIComponent(file)).then((r) => (r.ok ? r.text() : `Could not open ${file}`));
+    if (!vscode) return fetch('/api/doc?file=' + encodeURIComponent(file)).then((r) => (r.ok ? r.text() : `I couldn't find ${file}, I'm afraid.`));
     return new Promise((resolve) => {
       const id = Math.random().toString(36).slice(2);
       pendingDocs.set(id, resolve);
@@ -162,7 +163,7 @@
     const s = shown.find((x) => x.id === selected);
     if (!s) {
       $('dock').innerHTML = '';
-      $('detail').innerHTML = `<div class="empty">No Claude Code session ${scope ? 'in ' + esc(base(scope)) + ' ' : ''}right now.</div>`;
+      $('detail').innerHTML = `<div class="empty">No session ${scope ? 'in ' + esc(base(scope)) + ' ' : ''}at present. I shall keep an eye out.</div>`;
       $('extra').innerHTML = '';
       return;
     }
@@ -198,9 +199,9 @@
         : ''}
       </div>`, `
       <div class="cols">
-        <div class="box"><h2>Activity</h2><div class="rows">${actRows || '<span class="muted">Nothing yet</span>'}</div>
+        <div class="box"><h2>Activity</h2><div class="rows">${actRows || '<span class="muted">Nothing to report yet</span>'}</div>
           ${acts.length > LIMIT.activity ? `<button class="more" data-toggle="activity">${open.activity ? 'Show less' : `Show ${acts.length - LIMIT.activity} more`}</button>` : ''}</div>
-        <div class="box"><h2>Files changed</h2><div class="rows">${fileRows || '<span class="muted">None yet</span>'}</div>
+        <div class="box"><h2>Files changed</h2><div class="rows">${fileRows || '<span class="muted">Untouched so far</span>'}</div>
           ${files.length > LIMIT.files ? `<button class="more" data-toggle="files">${open.files ? 'Show less' : `Show ${files.length - LIMIT.files} more`}</button>` : ''}
         </div>
       </div>`];
@@ -227,7 +228,7 @@
   // Each gauge keeps its last reading, so a redraw starts the arc where it was and
   // eases it to the new value (animateSpeedos) instead of jumping.
   const speedoAt = new Map(); // key -> level last shown
-  const zoneOf = (l) => (l >= 0.85 ? 'var(--red)' : l >= 0.5 ? 'var(--accent)' : 'var(--blue)');
+  const zoneOf = (l) => (l >= 0.85 ? 'var(--rose)' : l >= 0.5 ? 'var(--accent)' : 'var(--peri)');
   function speedo(t, big = false, key = '') {
     if (!t) return '';
     const level = Math.max(0, Math.min(1, t.level || 0));
@@ -268,7 +269,7 @@
       <div class="ctx"><span>Context</span><span>${s.context.pct}%${compact ? '' : ` · ${Math.round(s.context.tokens / 1000)}k of ${Math.round(s.context.window / 1000)}k`}</span></div>
       <div class="bar thin ${ctxClass(s.context.pct)}"><div style="width:${s.context.pct}%"></div></div>
       ${s.throughput ? `<div class="stat effort"><span class="muted">Tokens/min</span>${speedo(s.throughput, !compact, (compact ? 'side' : 'stats') + s.id)}</div>` : ''}
-      ${s.lastTest ? `<div class="stat"><span class="muted">Last test run</span><span class="clamp1" style="color:${s.lastTest.ok ? 'var(--green)' : 'var(--red)'}" title="${esc(s.lastTest.summary)}">${esc(compact ? (s.lastTest.ok ? 'Passing' : 'Failing') : s.lastTest.summary.replace(/^Tests:\s*/, ''))}</span></div>` : ''}
+      ${s.lastTest ? `<div class="stat"><span class="muted">Last test run</span><span class="clamp1" style="color:${s.lastTest.ok ? 'var(--ok)' : 'var(--rose)'}" title="${esc(s.lastTest.summary)}">${esc(compact ? (s.lastTest.ok ? 'Passing' : 'Failing') : s.lastTest.summary.replace(/^Tests:\s*/, ''))}</span></div>` : ''}
       ${s.subagentsRunning ? `<div class="stat"><span class="muted">Subagents</span><span>${s.subagentsRunning} running</span></div>` : ''}
     </div>`;
   }
@@ -305,8 +306,8 @@
         ${now.plus ? `<span class="plus mono">+${now.plus}</span>` : ''}${now.minus ? `<span class="minus mono">−${now.minus}</span>` : ''}</div>` : ''}
     </div>`;
   }
-  // Context bar colour by how full it is, as in the mockup: blue, then amber past half, red past three quarters.
-  const ctxClass = (pct) => (pct >= 75 ? 'red' : pct >= 50 ? 'amber' : 'blue');
+  // Context bar colour by how full it is: periwinkle, then violet past half, rose past three quarters.
+  const ctxClass = (pct) => (pct >= 75 ? 'high' : pct >= 50 ? 'mid' : 'low');
 
   // ---------- plans ----------
 
@@ -346,7 +347,7 @@
         ${(opened ? items : items.slice(0, 1)).map(planRow).join('')}</div>`;
     };
     const html = group('Active', active, true) + group('Pending', pending, active.length < 3) + group('Parked', parked, false) + group('Recently done', finished, false);
-    $('plans').innerHTML = projects.length ? `<div class="box"><h2>Plans</h2><div class="board">${html}</div></div>` : (scope ? '' : '<div class="empty">No plans found.</div>');
+    $('plans').innerHTML = projects.length ? `<div class="box"><h2>Plans</h2><div class="board">${html}</div></div>` : (scope ? '' : '<div class="empty">No plans about. How restful.</div>');
     $('plans').querySelectorAll('[data-group]').forEach((b) => (b.onclick = () => {
       groupOpen.set(b.dataset.group, b.getAttribute('aria-expanded') !== 'true');
       renderPlans();
@@ -486,9 +487,9 @@
     // Context and tests are secondary: below the plans, for the session the sidebar leads with.
     $('stats').innerHTML = sessions.length ? statsCard(sessions[0], true) : '';
     $('detail').innerHTML = (sessions.length ? sessions.slice(0, 3).map(sCard).join('')
-      : `<div class="empty">No Claude Code session in ${esc(base(scope || 'this repo'))} right now.</div>`);
+      : `<div class="empty">No session in ${esc(base(scope || 'this repo'))} at present. I shall keep an eye out.</div>`);
     $('extra').innerHTML = '';
-    $('footer').innerHTML = `${vscode ? `<div class="box followcard">${followToggle()}<p class="muted">Opens each file Claude edits beside your editor and highlights the new lines for a few seconds.</p></div>` : ''}<button class="btn wide" data-details>Open details</button>`;
+    $('footer').innerHTML = `${vscode ? `<div class="box followcard">${followToggle()}<p class="muted">Opens each file the agent edits beside yours and highlights the new lines for a moment. Looking over its shoulder, discreetly.</p></div>` : ''}<button class="btn wide" data-details>Open details</button>`;
     $('plans').innerHTML = plans.length ? `<div class="box lead"><h2>Plans</h2>${plans.map(planRow).join('')}
       ${state.projects.length > plans.length ? `<a href="#" class="more" data-details>All ${state.projects.length} plans</a>` : ''}</div>` : '';
   }
@@ -574,7 +575,7 @@
     // otherwise a task count with the bar.
     const cur = p ? p.phases.find((ph) => !ph.done) : null;
     const phases = p && p.phases.length ? `<div class="phaselist">${p.phases.map((ph) => {
-      const style = ph.done ? 'background:#3fb950;border-color:#3fb950;color:#0d1117' : ph === cur && p.status === 'active' ? 'border:2px solid var(--accent)' : '';
+      const style = ph.done ? 'background:var(--accent-strong);border-color:var(--accent-strong);color:#fff' : ph === cur && p.status === 'active' ? 'border:2px solid var(--accent)' : '';
       return `<div class="${ph === cur ? 'cur' : ''}"><span class="dot" style="${style}">${ph.done ? '✓' : ''}</span><span class="clamp1">Phase ${ph.n}${ph.title ? ' · ' + esc(ph.title) : ''}</span></div>`;
     }).join('')}</div>` : '';
     const tasks = p && !p.phases.length && p.progress.basis === 'tasks' ? `<div class="ctx"><span>${esc(progressLabel(p))}</span></div>${segs(p)}` : '';
@@ -648,7 +649,7 @@
     if (!blocks.length) return;
     const place = (pre, svg) => {
       if (!pre.isConnected) return;
-      if (svg === null) { pre.classList.add('mermaid-failed'); pre.title = 'Could not render this diagram; showing its source'; return; }
+      if (svg === null) { pre.classList.add('mermaid-failed'); pre.title = 'This diagram got the better of me; here is its source instead'; return; }
       const box = document.createElement('div');
       box.className = 'mermaid';
       box.innerHTML = svg;
@@ -754,8 +755,8 @@
   } else {
     window.addEventListener('hashchange', route);
     const es = new EventSource('/api/events' + (scope ? '?repo=' + encodeURIComponent(scope) : ''));
-    es.onopen = () => { $('conn').textContent = 'live'; $('conn').className = 'pill ok'; };
-    es.onerror = () => { $('conn').textContent = 'reconnecting…'; $('conn').className = 'pill'; };
+    es.onopen = () => { $('conn').textContent = 'on duty'; $('conn').className = 'pill ok'; };
+    es.onerror = () => { $('conn').textContent = 'one moment…'; $('conn').className = 'pill'; };
     es.onmessage = (ev) => onState(JSON.parse(ev.data));
   }
 })();

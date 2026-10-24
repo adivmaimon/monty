@@ -1,5 +1,5 @@
 // The menu bar monocle, drawn with AppKit rather than shipped as the core's PNG so the
-// needs-you dot can be orange and the failing dot red (a template image is one colour).
+// needs-you dot can be orchid and the failing dot rose (a template image is one colour).
 // Same design and geometry as src/icon.ts, in its 18-unit glyph space: the lens only (the
 // app icon's chain and eyelet turn to noise at 18pt), a solid rim, progress as an inner
 // arc, a glass highlight when there is no progress, a tick when done.
@@ -7,8 +7,8 @@
 import AppKit
 
 enum Monocle {
-    static let orange = NSColor(srgbRed: 0xf0 / 255, green: 0x88 / 255, blue: 0x3e / 255, alpha: 1)
-    static let red = NSColor(srgbRed: 0xf8 / 255, green: 0x51 / 255, blue: 0x49 / 255, alpha: 1)
+    static let orchid = NSColor(srgbRed: 0xf0 / 255, green: 0x8b / 255, blue: 0xd8 / 255, alpha: 1)
+    static let rose = NSColor(srgbRed: 0xfb / 255, green: 0x71 / 255, blue: 0x85 / 255, alpha: 1)
 
     // src/icon.ts, unit for unit.
     static let lens = NSPoint(x: 9, y: 9)
@@ -78,7 +78,7 @@ enum Monocle {
             NSGraphicsContext.restoreGraphicsState()
 
             if dotted {
-                (kind == "attention" ? orange : red).setFill()
+                (kind == "attention" ? orchid : rose).setFill()
                 NSBezierPath(ovalIn: NSRect(x: badge.x - badgeR, y: badge.y - badgeR, width: badgeR * 2, height: badgeR * 2)).fill()
             }
             return true
