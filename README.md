@@ -8,6 +8,13 @@ Monty watches sessions from Claude Code, Codex CLI, opencode, Cline, Roo Code an
 
 ![Monty's details view](docs/screenshots/details.png)
 
+<p>
+  <img alt="The VS Code sidebar" src="docs/screenshots/sidebar.png" width="300">
+  <img alt="The menu bar dropdown, with a Codex session that needs you and a Claude Code session at work" src="docs/screenshots/menubar.png" width="380">
+</p>
+
+![A plan in the readable view](docs/screenshots/plan.png)
+
 ## How it fits together
 
 One local core, several thin surfaces.
