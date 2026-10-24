@@ -70,4 +70,4 @@ Commands: **Monty: Open details**, **Monty: Toggle follow mode**, **Open readabl
 
 ## License
 
-MIT. Source and issues: [github.com/adivmaimon/monty](https://github.com/adivmaimon/monty).
+MIT. Made by [Adiv Maimon](https://adivmaimon.com). Source and issues: [github.com/adivmaimon/monty](https://github.com/adivmaimon/monty).
