@@ -1,6 +1,6 @@
 {
   "name": "monty",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Keeps an eye on your coding agent: live Claude Code progress, readable specs, menu bar monocle.",
   "private": true,
   "type": "module",
