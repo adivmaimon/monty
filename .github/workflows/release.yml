@@ -1,5 +1,7 @@
-# Release: run by hand (Actions > release > Run workflow) with dry_run off, and the
-# version in vscode/package.json (0.2.0) becomes
+# Release: run by hand (Actions > release > Run workflow) with dry_run off. The version
+# is worked out here (scripts/release-version.mjs): the last v* tag bumped by `bump`
+# (patch by default), or package.json's if that is already ahead. The bump, with the
+# changelog's "## Unreleased" renamed to it, is committed back to main, and becomes
 #   - a GitHub Release with monty-<version>.vsix and Monty.zip (the signed, notarized
 #     menu bar app the extension downloads), and
 #   - the extension published to the VS Code Marketplace when VSCE_PAT is set, and to Open
@@ -24,6 +26,11 @@ on:
         description: "Build, sign and notarize, but do not release or publish"
         type: boolean
         default: true
+      bump:
+        description: "Which part of the version to bump"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
 
 permissions:
   contents: write
@@ -40,16 +47,22 @@ jobs:
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the tags, to find the last release
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - name: Version
+        env:
+          BUMP: ${{ inputs.bump || 'patch' }}
         run: |
-          version=$(node -p "require('./vscode/package.json').version")
-          if [[ "$GITHUB_EVENT_NAME" == "push" && "${GITHUB_REF_NAME#v}" != "$version" ]]; then
-            echo "::error::tag $GITHUB_REF_NAME does not match vscode/package.json version $version"; exit 1
+          last=$(git tag --list 'v*' --sort=-v:refname | head -1)
+          version=$(node scripts/release-version.mjs "${last:-v0.0.0}" "$BUMP" --write)
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "::error::v$version is already released"; exit 1
           fi
+          echo "Last release ${last:-none}, this one $version"
           echo "VERSION=$version" >> "$GITHUB_ENV"
 
       - name: Tests
@@ -57,6 +70,20 @@ jobs:
           npm ci
           npm test
           (cd vscode && npm ci && npm test)
+
+      # Pushed before the build, so the release's tag can point at it. If a later step
+      # fails, the next run finds package.json ahead of the last tag and reuses the version.
+      - name: Commit the version
+        if: env.DRY_RUN != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json vscode/package.json vscode/package-lock.json vscode/CHANGELOG.md
+          if ! git diff --cached --quiet; then
+            git commit -m "Monty $VERSION"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+          echo "RELEASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Package the extension
         working-directory: vscode
@@ -115,7 +142,7 @@ jobs:
           # This version's section of the changelog, without its heading.
           awk -v v="## $VERSION" '$0==v {on=1; next} /^## / {on=0} on' vscode/CHANGELOG.md > "$RUNNER_TEMP/notes.md"
           gh release create "v$VERSION" "vscode/monty-$VERSION.vsix" menubar/MontyApp/Monty.zip \
-            --title "Monty $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+            --target "$RELEASE_SHA" --title "Monty $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
 
       - name: Publish the extension
         if: env.DRY_RUN != 'true'
