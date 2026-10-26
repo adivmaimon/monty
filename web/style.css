@@ -96,6 +96,7 @@ body.vscode #back{display:none}
 .hero .eyebrow{font-size:11px;letter-spacing:.1em;font-weight:700;color:var(--accent);text-transform:uppercase}
 .hero h1{margin:0;font-size:28px;line-height:1.2;font-weight:700}
 .hero .goal{color:var(--soft);font-size:15px;line-height:1.55;margin:0;max-width:62ch}
+.hero .statusnote{color:var(--text);font-size:13.5px;line-height:1.5;margin:0 0 10px;padding:8px 12px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:4px;max-width:62ch}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:0}.chips span{font-size:12px;padding:4px 10px;border-radius:999px;background:var(--card);color:var(--soft)}
 .sec{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .sec>summary{min-height:56px;padding:14px 20px;font-size:17px;font-weight:600;display:flex;align-items:center;gap:12px}

@@ -4,7 +4,7 @@
 //     and passes state in via postMessage. Files then open as real editor tabs.
 // Scoped to one repo, it shows only that repo's sessions and plans.
 (function () {
-  const { esc, render } = window.MontyMD;
+  const { esc, render, inline: mdInline } = window.MontyMD;
   const $ = (id) => document.getElementById(id);
   const cfg = window.MONTY || {};
   const vscode = cfg.host && typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
@@ -319,6 +319,7 @@
     return segBar(done, total, p.status === 'active');
   }
   function progressLabel(p) {
+    if (p.label !== undefined) return p.label;
     const { done, total, basis } = p.progress;
     if (basis === 'phases') return p.status === 'completed' ? `${total} phases` : done >= total ? `All ${total} phases done` : `Phase ${done + 1} of ${total}`;
     if (basis === 'tasks') return `${done}/${total} tasks`;
@@ -568,7 +569,7 @@
     }).join('\n');
     const repoPath = p ? p.repoPath : docFile.replace(/\/\.claude\/.*$|\/openspec\/.*$|\/specs\/.*$|\/\.kiro\/.*$/, '');
     const refs = new Set();
-    const md = render(body, { repoPath, refs });
+    const md = render(body, { repoPath, refs, docDir: docFile.replace(/\/[^/]*$/, '') });
     // The goal is already in the header.
     if (p && p.goal) md.sections = md.sections.filter((s) => !/^goal$/i.test(s.title.trim()));
     const goal = (p && p.goal) || fm.description || '';
@@ -589,6 +590,9 @@
     // Three cards: status + progress (full width, sticks to the top on scroll),
     // headline + info, and phases or tasks at the top of the right column.
     const bar = p && p.progress.basis !== 'status' ? segs(p) : '';
+    // The plan's own Status sentence ("Waiting: Phase 1 missed the threshold...") says more than
+    // the tag; a bare word that only repeats the tag is left out.
+    const statusNote = p && p.statusText && !/^(active|pending|in progress|complete[d]?|done|planned|draft|parked|cancell?ed)\.?$/i.test(p.statusText.trim()) ? p.statusText : '';
     const statusCard = p ? `<div class="statuscard">
       ${statusTag}
       <span class="sb-title clamp1">${esc(title)}</span>
@@ -597,6 +601,7 @@
     const hero = `<section class="hero lead">
       ${p ? `<div class="eyebrow">${p.source === 'claude-projects' ? 'Plan' : esc(p.source)}</div>` : docKind(docFile) ? `<div class="eyebrow">${docKind(docFile)}</div>` : ''}
       <h1>${esc(title)}</h1>
+      ${statusNote ? `<p class="statusnote">${mdInline(statusNote, { repoPath })}</p>` : ''}
       ${goal ? `<p class="goal clamp3 ${xp('goal')}">${esc(goal)}</p>` : ''}
       ${chips.length ? `<div class="chips">${chips.map(([k, v]) => `<span>${esc(k)}: ${esc(v.replace(/`/g, ''))}</span>`).join('')}</div>` : ''}
     </section>`;
@@ -606,7 +611,7 @@
     const secs = md.sections.map((s, i) => {
       const isOpen = secOpen.has(i) ? secOpen.get(i) : i === 0;
       const words = s.html.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
-      return `<details class="sec" data-i="${i}" ${isOpen ? 'open' : ''}><summary><span>${esc(s.title)}</span><span class="hint">${words >= 600 ? `${Math.round(words / 200)} min read` : ''}</span></summary><div class="in">${s.html}</div></details>`;
+      return `<details class="sec" data-i="${i}" ${isOpen ? 'open' : ''}><summary><span>${mdInline(s.title, {})}</span><span class="hint">${words >= 600 ? `${Math.round(words / 200)} min read` : ''}</span></summary><div class="in">${s.html}</div></details>`;
     }).join('');
     const pre = md.preamble.replace(/<p>\s*<\/p>/g, '').trim();
     $('doc').innerHTML = hero + (pre ? `<section class="sec"><div class="in" style="padding-top:12px">${pre}</div></section>` : '') + secs;
@@ -614,7 +619,7 @@
     renderMermaid($('doc'));
     const refList = [...refs].slice(0, 30);
     $('docSide').innerHTML = `${progressCard}
-      ${md.sections.length > 1 ? `<div class="side"><h2>Sections</h2>${md.sections.map((s, i) => `<a href="#" data-sec="${i}">${esc(s.title)}</a>`).join('')}</div>` : ''}
+      ${md.sections.length > 1 ? `<div class="side"><h2>Sections</h2>${md.sections.map((s, i) => `<a href="#" data-sec="${i}">${esc(s.title.replace(/[`*]|__/g, ''))}</a>`).join('')}</div>` : ''}
       ${refList.length ? `<div class="side"><h2>Files mentioned</h2>${refList.map((r) => { const [f, l] = r.split(':'); return `<a class="mono" href="#" data-open="${esc(repoPath + '/' + f)}" data-line="${l ? l.split(/[,-]/)[0] : ''}" title="${esc(r)}">${esc(base(f))}${l ? ':' + esc(l.split(/[,-]/)[0]) : ''}</a>`; }).join('')}</div>` : ''}`;
     $('docSide').querySelectorAll('[data-sec]').forEach((a) => (a.onclick = (e) => {
       e.preventDefault();

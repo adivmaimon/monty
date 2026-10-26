@@ -7,6 +7,9 @@
 - A turn that leaves a background job or monitor running shows "Waiting on a background job" instead of "Your move", with no alert; the alert comes when Claude reports back. Turn length counts from your last prompt, so a quick report after a long job still alerts.
 - Prompts sent as blocks (from VS Code, with images or pasted text) and API errors now count, so their turns alert too.
 - No more alert for each failing test run mid-turn. A finished alert says if tests were left failing.
+- Plans: the Status sentence shows under the title; "Phase 2 done" in a Status line and "(done)" on a heading count; phases written as bold paragraphs are found; "Phase N of M" names the first phase not done.
+- Plan view: markdown in section headings renders, table cells keep pipes inside code, code blocks under list items stay code, relative links open the linked doc, `__bold__` works.
+- The menu bar dropdown says when macOS is blocking Monty's notifications, with a link to System Settings.
 - When nothing is at work, the menu bar says "your move" or "all done" instead of plan progress, and plans read "0 of 5 phases done" rather than "Phase 1 of 5".
 
 ## 0.4.0

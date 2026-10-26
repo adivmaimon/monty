@@ -95,3 +95,36 @@ test('Spec Kit phases are done when all their tasks are ticked', () => {
   const md = '## Phase 1: Setup\n- [x] T001 a\n- [x] T002 b\n## Phase 2: Foundational\n- [x] T003 c\n- [ ] T004 d\n';
   assert.deepEqual(phasesFromCheckboxGroups(md).map((p) => [p.n, p.done]), [[1, true], [2, false]]);
 });
+
+test('a Status line saying "Phase 2 done" counts phases 1 and 2; prose "is done when" counts nothing', () => {
+  const md = '# X\n\n**Status**: Phase 2 done (2026-10-25)\n\n## Phase 1 - A\n\nPhase 3 is done when the gate passes.\n\n## Phase 2 - B\n\n## Phase 3 - C\n\n## Phase 4 - D\n';
+  const p = parseClaudeProject(md, where);
+  assert.deepEqual(p.phases.map((ph) => ph.done), [true, true, false, false]);
+  assert.equal(p.label, 'Phase 3 of 4');
+});
+
+test('"### Phase 2 - Engine (done)" in lowercase marks the phase', () => {
+  const phases = findPhases(['## Phase 1 - Setup', '### Phase 2 - Engine (done)'], false);
+  assert.deepEqual(phases.map((p) => p.done), [false, true]);
+});
+
+test('phases written as bold paragraphs are found, with the title after the bold', () => {
+  const phases = findPhases(['**Phase 1** — the refund flow. Then more prose.', '', '**Phase 2** — admin credits'], false);
+  assert.deepEqual(phases.map((p) => [p.n, p.title]), [[1, 'the refund flow'], [2, 'admin credits']]);
+});
+
+test('the label names the first phase not done, by its own number', () => {
+  const md = '# X\n\n## Phase 0 - Spike - DONE\n\n## Phase 1 - A\n\n## Phase 2 - B - DONE\n';
+  assert.equal(parseClaudeProject(md, where).label, 'Phase 1 of 3');
+});
+
+test('a bullet that starts with "Status" but has no colon is not the Status line', () => {
+  assert.equal(findStatusLine(['- Status alerts end with a full stop.', '**Status:** Active']), 'Active');
+});
+
+test('"Phase 2 done; Phase 1 waits for the owner" leaves Phase 1 open', () => {
+  const md = '# X\n\n**Status**: Phase 2 done (2026-10-24); Phase 1 waits for the owner\n\n## Phase 1 - A\n\n## Phase 2 - B\n\n## Phase 3 - C\n';
+  const p = parseClaudeProject(md, where);
+  assert.deepEqual(p.phases.map((ph) => ph.done), [false, true, false]);
+  assert.equal(p.label, 'Phase 1 of 3');
+});

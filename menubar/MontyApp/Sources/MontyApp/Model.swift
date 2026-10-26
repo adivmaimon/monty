@@ -54,11 +54,16 @@ struct Project: Decodable, Identifiable {
     var status: String
     var phases: [Phase]?
     var progress: Progress
+    /// Worked out by the core (first phase not done, by its own number); older cores leave it out.
+    var coreLabel: String?
+
+    enum CodingKeys: String, CodingKey { case id, repo, repoPath, name, file, status, phases, progress, coreLabel = "label" }
 
     struct Phase: Decodable { var n: Int; var title: String; var done: Bool }
     struct Progress: Decodable { var done: Int; var total: Int; var basis: String }
 
     var label: String {
+        if let coreLabel { return coreLabel }
         switch progress.basis {
         case "phases": return progress.done >= progress.total ? "All \(progress.total) phases done" : "Phase \(progress.done + 1) of \(progress.total)"
         case "tasks": return "\(progress.done)/\(progress.total) tasks"

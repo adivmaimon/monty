@@ -51,7 +51,7 @@ export function scanRepo(repoPath: string): Project[] {
     ...scanOpenSpec(repoPath),
     ...scanCheckboxSpecs(repoPath, 'specs', 'spec-kit'),
     ...scanCheckboxSpecs(repoPath, path.join('.kiro', 'specs'), 'kiro'),
-  ];
+  ].map((p) => ({ ...p, label: p.label ?? progressLabel(p.status, p.phases, p.progress) }));
 }
 
 function readDir(p: string): fs.Dirent[] {
@@ -90,7 +90,7 @@ function scanClaudeProjects(repoPath: string): Project[] {
     if (!bucket) continue;
     const dir = path.join(base, bucketDir.name);
     let files = readDir(dir)
-      .filter((f) => f.isFile() && f.name.endsWith('.md'))
+      .filter((f) => f.isFile() && f.name.endsWith('.md') && !/\.[a-z]+\.md$/i.test(f.name)) // x.debate.md is a note about a plan, not a plan
       .map((f) => path.join(dir, f.name));
     if (bucket === 'completed' || bucket === 'cancelled') {
       files = files.sort((a, b) => mtime(b).getTime() - mtime(a).getTime()).slice(0, MAX_COMPLETED_PER_REPO);
@@ -111,8 +111,9 @@ export function parseClaudeProject(
   const lines = text.split('\n').map((l) => l.replace(/^\s*>\s?/, ''));
   const statusText = findStatusLine(lines);
   const status = resolveStatus(where.bucket, statusText);
-  const phases = findPhases(lines, status === 'completed');
+  const phases = findPhases(lines, status === 'completed', statusText);
   const tasks = countCheckboxes(text);
+  const progress = progressOf(status, phases, tasks);
   return {
     id: `${where.repo}:${path.basename(where.file, '.md')}`,
     repo: where.repo,
@@ -125,15 +126,17 @@ export function parseClaudeProject(
     goal: findSection(lines, 'goal'),
     phases,
     tasks,
-    progress: progressOf(status, phases, tasks),
+    progress,
+    label: progressLabel(status, phases, progress),
     updatedAt: mtime(where.file).toISOString(),
   };
 }
 
 export function findStatusLine(lines: string[]): string | undefined {
   // **Status:** X  |  **Status**: X  |  Status: X   (first match wins; usually line 3 or the last line)
+  // The colon is required: "- Status alerts end with a full stop" is a sentence about alerts.
   for (const l of lines) {
-    const m = /^\s*(?:[-*]\s*)?\*{0,2}Status\*{0,2}\s*:?\s*\*{0,2}\s*:?\s*(.+?)\s*$/i.exec(l);
+    const m = /^\s*(?:[-*]\s*)?\*{0,2}Status(?:\*{2}\s*:|\s*:\s*\*{0,2})\s*(.+?)\s*$/i.exec(l);
     if (m && m[1] && !/^\|/.test(l)) return m[1].replace(/\*+/g, '').trim();
   }
   return undefined;
@@ -151,23 +154,27 @@ export function resolveStatus(bucket: ProjectStatus, statusText?: string): Proje
 }
 
 const PHASE_HEADING = /^#{2,5}\s*(?:✅\s*)?Phase\s+(\d+)\b\s*[-—–:.]?\s*(.*)$/i;
-// "- **Phase 2 — the replace engine — DONE.**" - phases written up as bold bullets
-const PHASE_BULLET = /^[-*]\s+\*\*(?:✅\s*)?Phase\s+(\d+)\b\s*[-—–:.]?\s*([^*]*)\*\*/i;
+// "- **Phase 2 — the replace engine — DONE.**" - phases written up as bold bullets, or as
+// bold paragraphs with the title after the bold: "**Phase 1** — the refund flow."
+const PHASE_BULLET = /^(?:[-*]\s+)?\*\*(?:✅\s*)?Phase\s+(\d+)\b\s*[-—–:.]?\s*([^*]*)\*\*(?:\s*[-—–:.]\s*(.*))?/i;
 
-export function findPhases(lines: string[], allDone: boolean): Phase[] {
+export function findPhases(lines: string[], allDone: boolean, statusText?: string): Phase[] {
   const phases = new Map<number, Phase>();
   for (const l of lines) {
     const m = PHASE_HEADING.exec(l.trim()) ?? PHASE_BULLET.exec(l.trim());
     if (!m) continue;
     const n = Number(m[1]);
     if (phases.has(n)) continue;
-    const rawTitle = (m[2] ?? '').replace(/[*_`]/g, '').trim();
+    // The title after the bold runs on as prose; its first clause is the name.
+    const after = (m[3] ?? '').split(/(?<=\.)\s|[.;:](?:\s|$)/)[0] ?? '';
+    const rawTitle = (m[2] || after).replace(/[*_`]/g, '').trim().slice(0, 90);
     phases.set(n, { n, title: rawTitle.replace(/\s*[-—–]\s*(DONE|COMPLETE[D]?)\b.*$/i, '').trim(), done: false });
   }
   if (phases.size === 0) return [];
   const body = lines.join('\n');
+  const fromStatus = phasesDoneInStatus(statusText);
   for (const p of phases.values()) {
-    p.done = allDone || phaseMarkedDone(body, p.n);
+    p.done = allDone || phaseMarkedDone(body, p.n) || fromStatus(p.n);
   }
   return [...phases.values()].sort((a, b) => a.n - b.n);
 }
@@ -177,8 +184,26 @@ function phaseMarkedDone(body: string, n: number): boolean {
     new RegExp(`✅[^\\n]{0,12}Phase\\s+${n}\\b`, 'i'),
     new RegExp(`Phase\\s+${n}\\b[^\\n]{0,90}?(\\bDONE\\b|\\bSHIPPED\\b|✅|\\bCOMPLETE(D)?\\b(?!\\s+when))`),
     new RegExp(`^\\s*[-*]\\s*\\[[xX]\\]\\s*\\**Phase\\s+${n}\\b`, 'm'),
+    // Lowercase only as a marker on the phase's own heading: "### Phase 2 - Engine (done)",
+    // "## Phase 2: done". Prose like "Phase 3 is done when" must not count.
+    new RegExp(`^#{2,5}\\s*Phase\\s+${n}\\b[^\\n]*?(?:[-—–(:]\\s*|\\s)(?:done|complete[d]?|shipped)\\b\\)?\\s*(?:\\(\\d{4}-\\d{2}-\\d{2}\\))?\\s*$`, 'im'),
   ];
   return patterns.some((r) => r.test(body));
+}
+
+/**
+ * The Status line saying how far it got: "Phase 2 done (2026-10-25)" means 1 and 2 are
+ * (phases run in order unless the plan says otherwise); "Phases 1 and 3 done" means those two.
+ */
+function phasesDoneInStatus(statusText?: string): (n: number) => boolean {
+  const m = /^Phases?\s+([\d,\s]+(?:(?:and|&)\s*\d+)?)\s+(?:are\s+|is\s+)?(?:done|complete[d]?|shipped)\b/i.exec(statusText ?? '');
+  if (!m?.[1]) return () => false;
+  const nums = (m[1].match(/\d+/g) ?? []).map(Number);
+  // "Phase 2 done; Phase 1 waits for the owner": a phase the rest of the line names keeps its own state.
+  const rest = (statusText ?? '').slice(m[0].length);
+  const named = new Set([...rest.matchAll(/Phase\s+(\d+)/gi)].map((x) => Number(x[1])));
+  if (nums.length === 1) return (n) => n === nums[0] || (n < (nums[0] as number) && !named.has(n));
+  return (n) => nums.includes(n);
 }
 
 function findTitle(lines: string[]): string | undefined {
@@ -221,6 +246,18 @@ function progressOf(status: ProjectStatus, phases: Phase[], tasks: { done: numbe
   if (tasks.total) return { ...tasks, basis: 'tasks' };
   const finished = status === 'completed' ? 1 : 0;
   return { done: finished, total: 1, basis: 'status' };
+}
+
+/** "Phase 3 of 5": the first phase not done, by its own number, since plans don't always go in order. */
+export function progressLabel(status: ProjectStatus, phases: Phase[], progress: Project['progress']): string {
+  const { done, total, basis } = progress;
+  if (basis === 'phases') {
+    if (status === 'completed') return `${total} phases`;
+    const next = phases.find((p) => !p.done);
+    return next ? `Phase ${next.n} of ${total}` : `All ${total} phases done`;
+  }
+  if (basis === 'tasks') return `${done}/${total} tasks`;
+  return status === 'cancelled' ? 'cancelled' : '';
 }
 
 function prettyName(slug: string): string {

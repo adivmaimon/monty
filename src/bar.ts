@@ -62,10 +62,7 @@ function esc(s: string): string {
 }
 
 function projectLabel(p: Project): string {
-  const { done, total, basis } = p.progress;
-  if (basis === 'phases') return done >= total ? `All ${total} phases done` : `Phase ${done + 1} of ${total}`;
-  if (basis === 'tasks') return `${done}/${total} tasks`;
-  return '';
+  return p.label ?? '';
 }
 
 /** Links go through the Monty extension, so they land in the VS Code window that has the repo open. */

@@ -399,7 +399,14 @@ struct Dropdown: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Button("Notifications: \(store.notify ? "on" : "off")") { store.notify.toggle() }.buttonStyle(Pill(filled: false, bordered: false))
+            if store.notify && store.blockedBySystem {
+                // Opens System Settings > Notifications, where Monty can be allowed again.
+                Button("Notifications blocked in System Settings") {
+                    if let u = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") { NSWorkspace.shared.open(u) }
+                }.buttonStyle(Pill(filled: false, bordered: false)).foregroundStyle(StateStyle.color("needs_input"))
+            } else {
+                Button("Notifications: \(store.notify ? "on" : "off")") { store.notify.toggle() }.buttonStyle(Pill(filled: false, bordered: false))
+            }
             Spacer()
             Button("Quit") { NSApp.terminate(nil) }.buttonStyle(Pill(filled: false, bordered: false))
         }

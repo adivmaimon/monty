@@ -42,3 +42,26 @@ test('a table row with no separator under it renders as text instead of hanging'
   assert.match(render('## 4. Tools\n\n| Tool | What it does |'), /<p>\| Tool \| What it does \|<\/p>/);
   assert.match(render('| a | b |\nplain'), /<p>\| a \| b \| plain<\/p>|<p>\| a \| b \|/);
 });
+
+test('table cells keep pipes inside code spans and escaped pipes', () => {
+  const html = render('| a | b |\n|---|---|\n| `x || y` | p \\| q |');
+  assert.match(html, /<td><code>x \|\| y<\/code><\/td><td>p \| q<\/td>/);
+});
+
+test('a fenced block indented under a list item stays a code block', () => {
+  const html = render('- Step one\n  ```ts\n  const a = 1;\n  ```\n- Step two');
+  assert.match(html, /<li>Step one<pre><code>const a = 1;<\/code><\/pre><\/li>/);
+});
+
+test('relative links open the doc they point at; __bold__ and links with parens render', () => {
+  const out = ctx.window.MontyMD.render('See [y](../active/y.md) and [w](https://e.org/Foo_(bar)) and __bold__.', { docDir: '/r/.claude/projects/completed' });
+  const html = out.preamble;
+  assert.match(html, /data-doc="\/r\/.claude\/projects\/active\/y.md"/);
+  assert.match(html, /href="https:\/\/e.org\/Foo_\(bar\)"/);
+  assert.match(html, /<strong>bold<\/strong>/);
+});
+
+test('a rule under a paragraph ends it, and an unindented wrapped line stays in its item', () => {
+  assert.doesNotMatch(render('Text\n---\nMore'), /---/);
+  assert.match(render('- a long item\nthat wraps\n\nAfter'), /<li>a long item that wraps<\/li>/);
+});

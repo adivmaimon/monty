@@ -13,6 +13,8 @@ final class Store: ObservableObject {
     @Published private(set) var online = false
     /// "Done, clears on click": a finished session's tick goes once you have opened the dropdown.
     @Published private(set) var doneSeen: String?
+    /// macOS itself is refusing Monty's banners: "Notifications: on" alone would be a lie.
+    @Published private(set) var blockedBySystem = false
     @Published var notify: Bool {
         didSet { UserDefaults.standard.set(notify, forKey: "notify") }
     }
@@ -33,6 +35,7 @@ final class Store: ObservableObject {
     }
 
     func start() {
+        checkSystemPermission()
         Task { await poll() }
         timer = Timer.scheduledTimer(withTimeInterval: pollSeconds, repeats: true) { [weak self] _ in
             Task { await self?.poll() }
@@ -47,6 +50,14 @@ final class Store: ObservableObject {
 
     func dropdownOpened() {
         if let k = doneKey { doneSeen = k }
+        checkSystemPermission()
+    }
+
+    func checkSystemPermission() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            let blocked = settings.authorizationStatus == .denied || settings.alertSetting == .disabled
+            Task { @MainActor in self.blockedBySystem = blocked }
+        }
     }
 
     var badge: String {

@@ -216,7 +216,10 @@ export function withPlan(s: Session, projects: Project[]): Session {
   // Every phase marked done but the plan not yet moved to completed/: say so, not "Phase 7 of 7".
   // "Phase 2 of 5" says a phase is under way, so only while the session is; otherwise a count.
   const busy = s.state === 'working' || s.state === 'needs_input';
-  const label = basis === 'phases' ? (done >= total ? `All ${total} phases done` : busy ? `Phase ${done + 1} of ${total}` : `${done} of ${total} phases done`) : `${done}/${total} tasks`;
+  // By the phase's own number when the list is there (plans skip ahead, or start at 0).
+  const list = pick.phases ?? [];
+  const next = list.length ? list.find((ph) => !ph.done) : done < total ? { n: done + 1 } : undefined;
+  const label = basis === 'phases' ? (!next ? `All ${total} phases done` : busy ? `Phase ${next.n} of ${total}` : `${done} of ${total} phases done`) : `${done}/${total} tasks`;
   return { ...s, plan: { name: pick.name, file: pick.file, done, total, basis, label, match } };
 }
 

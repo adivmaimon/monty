@@ -14,6 +14,27 @@
     return `<a class="ref" href="#" data-open="${esc(repoPath + '/' + p)}" data-line="${line}" title="Open ${esc(p)}"><code>${esc(code)}</code></a>`;
   }
 
+  /** "../active/y.md" against the doc's folder: plain path arithmetic, no URL parsing. */
+  function resolve(dir, rel) {
+    const parts = (rel.startsWith('/') ? '' : dir).split('/');
+    for (const seg of rel.split('/')) {
+      if (seg === '..') parts.pop();
+      else if (seg && seg !== '.') parts.push(seg);
+    }
+    return parts.join('/').replace(/^(?!\/)/, '/');
+  }
+
+  function link(t, u, ctx) {
+    if (/^(https?:|#|vscode:|mailto:)/.test(u)) return `<a href="${u}">${t}</a>`;
+    // A link to another file in the repo: markdown opens in the readable view, the rest in the editor.
+    const dir = ctx.docDir || ctx.repoPath;
+    if (!dir) return `<a href="#">${t}</a>`;
+    const [file, frag] = u.split('#');
+    if (!file) return `<a href="#${frag ?? ''}">${t}</a>`;
+    const abs = resolve(dir, decodeURIComponent(file));
+    return /\.md$/i.test(abs) ? `<a href="#" data-doc="${abs}">${t}</a>` : `<a href="#" data-open="${abs}" data-line="">${t}</a>`;
+  }
+
   function inline(text, ctx) {
     const codes = [];
     let s = text.replace(/`([^`]+)`/g, (_, c) => {
@@ -22,8 +43,10 @@
       return `\u0000${codes.length - 1}\u0000`;
     });
     s = esc(s)
-      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, t, u) => `<a href="${/^(https?:|#|vscode:)/.test(u) ? u : '#'}">${t}</a>`)
+      // One level of parentheses inside the URL: wikipedia.org/wiki/Foo_(bar).
+      .replace(/\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/g, (_, t, u) => link(t, u, ctx))
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[\s(])__([^_]+)__(?=[\s.,;:)]|$)/g, '$1<strong>$2</strong>')
       .replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>')
       .replace(/(^|[\s(])_([^_\s][^_]*)_(?=[\s.,;:)]|$)/g, '$1<em>$2</em>');
     return s.replace(/\u0000(\d+)\u0000/g, (_, i) => codes[Number(i)]);
@@ -33,9 +56,10 @@
 
   function itemHtml(it, ctx) {
     const cb = /^\[([ xX~-])\]\s*(.*)$/.exec(it.text);
-    if (!cb) return `<li>${inline(it.text, ctx)}${it.kids}`;
+    const extra = it.extra || '';
+    if (!cb) return `<li>${inline(it.text, ctx)}${extra}${it.kids}`;
     const done = cb[1] === 'x' || cb[1] === 'X';
-    return `<li class="cb">${done ? '✅' : '⬜'} ${done ? `<span class="muted">${inline(cb[2], ctx)}</span>` : inline(cb[2], ctx)}${it.kids}`;
+    return `<li class="cb">${done ? '✅' : '⬜'} ${done ? `<span class="muted">${inline(cb[2], ctx)}</span>` : inline(cb[2], ctx)}${extra}${it.kids}`;
   }
 
   /** Items deeper than the first one's indent nest under the item before them, as their own list. */
@@ -76,7 +100,20 @@
         continue;
       }
       if (/^\s*\|/.test(l) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
-        const cells = (r) => r.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+        // Split on pipes outside code spans: `a || b` is one cell. "\|" is a literal pipe.
+        const cells = (r) => {
+          const out = [''];
+          let code = false;
+          const t = r.trim().replace(/^\|/, '').replace(/(?<!\\)\|$/, '');
+          for (let k = 0; k < t.length; k++) {
+            const ch = t[k];
+            if (ch === '\\' && t[k + 1] === '|') { out[out.length - 1] += '|'; k++; continue; }
+            if (ch === '`') code = !code;
+            if (ch === '|' && !code) out.push('');
+            else out[out.length - 1] += ch;
+          }
+          return out.map((c) => c.trim());
+        };
         const head = cells(l);
         i += 2;
         const rows = [];
@@ -96,7 +133,24 @@
             i++;
             continue;
           }
+          // A code fence inside an item stays a code block under it, not text run into the item.
+          if (items.length && /^\s*```/.test(cur) && /^\s+/.test(cur)) {
+            const body = [];
+            const fenceIndent = /^(\s*)/.exec(cur)[1].length;
+            i++;
+            while (i < lines.length && !/^\s*```/.test(lines[i])) body.push(lines[i++].slice(fenceIndent));
+            i++;
+            const last = items[items.length - 1];
+            last.extra = (last.extra || '') + `<pre><code>${esc(body.join('\n'))}</code></pre>`;
+            continue;
+          }
           if (items.length && /^\s{2,}\S/.test(cur)) {
+            items[items.length - 1].text += ' ' + cur.trim();
+            i++;
+            continue;
+          }
+          // A lazy continuation: wrapped text with no indent, straight after the item.
+          if (items.length && cur.trim() && lines[i - 1].trim() && !/^(#{1,6}\s|\s*```|\s*\||\s*>|\s*(---|\*\*\*)\s*$)/.test(cur)) {
             items[items.length - 1].text += ' ' + cur.trim();
             i++;
             continue;
@@ -124,7 +178,8 @@
       // Without that, a line no block takes (a "| a | b |" row with no separator under it)
       // stopped this loop before it read anything, and the renderer spun forever.
       const para = [lines[i++]];
-      while (i < lines.length && lines[i].trim() && !/^(#{1,6}\s|\s*```|\s*\||\s*([-*+]|\d+[.)])\s+|\s*>)/.test(lines[i])) para.push(lines[i++]);
+      // A rule under a paragraph ends it; plans use "---" as a divider, not a setext heading.
+      while (i < lines.length && lines[i].trim() && !/^(#{1,6}\s|\s*```|\s*\||\s*([-*+]|\d+[.)])\s+|\s*>|\s*(---|\*\*\*)\s*$)/.test(lines[i])) para.push(lines[i++]);
       blocks.push({ html: `<p>${inline(para.join(' '), ctx)}</p>` });
     }
     // Group by h2 into collapsible sections; everything before the first h2 is the preamble.
