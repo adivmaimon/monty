@@ -24,6 +24,8 @@ rm -rf "$APP" Monty.zip
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 BIN="$(swift build -c release --show-bin-path)/MontyApp"
 cp "$BIN" "$APP/Contents/MacOS/Monty"
+# The notification ping (scripts/make-ping.py). UNNotificationSound finds it by name in Resources.
+cp Resources/Ping.wav "$APP/Contents/Resources/Ping.wav"
 
 # The app icon (AppIcon.swift). Without one, notifications show a blank white tile.
 ICONSET="$(mktemp -d)/AppIcon.iconset"

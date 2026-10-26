@@ -110,6 +110,10 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     // A turn this long means you have probably looked away. Shorter ones are replies you
     // watched land; telling you about those as well would teach you to ignore the banner.
     private let finishedAfterMs = 30_000.0
+    // Monty's own ping (Resources/Ping.wav, copied in by build.sh). A build without it, such
+    // as `swift run`, falls back to the system sound rather than going silent.
+    static let ping: UNNotificationSound = Bundle.main.url(forResource: "Ping", withExtension: "wav") != nil
+        ? UNNotificationSound(named: UNNotificationSoundName("Ping.wav")) : .default
 
     func update(_ sessions: [Session], enabled: Bool) {
         // Ask up front: asked on the first send, that first banner went out before the answer and was lost.
@@ -150,13 +154,13 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         if kind == "needs_input" {
             n.title = "\(s.repo) requires your attention"
             n.body = s.stateReason
-            n.sound = .default
+            n.sound = Notifier.ping
         } else {
             n.title = s.state == "done" ? "\(s.repo): all done" : "\(s.repo): your move"
             // Tests left red at the end of a turn are worth knowing before you switch back.
             let red = s.lastTest.map { $0.ok ? "" : " · \($0.summary)" } ?? ""
             n.body = s.title + red
-            n.sound = .default
+            n.sound = Notifier.ping
         }
         n.userInfo = ["repo": s.repoPath ?? s.cwd]
         c.add(UNNotificationRequest(identifier: "\(s.id)-\(kind)", content: n, trigger: nil))

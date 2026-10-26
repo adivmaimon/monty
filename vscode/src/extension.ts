@@ -521,8 +521,29 @@ async function handleUri(extUri: vscode.Uri, uri: vscode.Uri) {
   } catch {
     /* the other window will still open; it just will not jump to the plan */
   }
-  // Focuses the window that already has this folder open; opens one if none does.
-  await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(repo), { forceNewWindow: true });
+  await openWindowFor(repo);
+}
+
+/**
+ * Brings up the window that has this folder open, or opens one if none does: what `code <folder>`
+ * does. The vscode.openFolder command with forceNewWindow opened a second window even when one
+ * already had the repo. The CLI ships inside the app (code, code-insiders, cursor...).
+ */
+async function openWindowFor(folder: string): Promise<void> {
+  const bin = path.join(vscode.env.appRoot, 'bin');
+  const names = process.platform === 'win32' ? ['code.cmd', 'code-insiders.cmd', 'cursor.cmd'] : ['code', 'code-insiders', 'cursor', 'codium', 'windsurf'];
+  let cli = names.map((n) => path.join(bin, n)).find((f) => fs.existsSync(f));
+  if (!cli) cli = fs.readdirSync(bin, { withFileTypes: true }).filter((e) => e.isFile() && !/tunnel|shim/.test(e.name)).map((e) => path.join(bin, e.name))[0];
+  if (cli) {
+    const ok = await new Promise<boolean>((resolve) => {
+      // Without the window's own CLI hook the request goes to the main process, which picks the window.
+      const env = { ...process.env };
+      delete env.VSCODE_IPC_HOOK_CLI;
+      execFile(cli as string, [folder], { env, shell: process.platform === 'win32', timeout: 10_000 }, (err) => resolve(!err));
+    });
+    if (ok) return;
+  }
+  await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(folder), { forceNewWindow: true });
 }
 
 async function collectIntents(extUri: vscode.Uri) {
