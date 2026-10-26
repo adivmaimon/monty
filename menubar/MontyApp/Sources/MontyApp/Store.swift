@@ -84,7 +84,7 @@ final class Store: ObservableObject {
     }
 }
 
-/// One notification per state change per session: needs you, finished, tests failing.
+/// One notification per state change per session: needs you, or finished after a long turn.
 /// The first poll only records where things stand, so launching the app is silent.
 @MainActor
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {
@@ -114,7 +114,6 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     /// What, if anything, is worth telling you about this session right now.
-    /// A failing run is keyed by its time, so each new failure counts once.
     private func eventKey(_ s: Session) -> String? {
         switch s.state {
         case "needs_input": return "needs_input"
@@ -122,8 +121,9 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         case "done", "your_turn":
             if let t = s.lastTurn, t.ms >= finishedAfterMs { return "finished@\(t.endedAt)" }
             return s.state == "done" ? "done" : nil
+        // No banner for a failing test run mid-turn: the agent is usually fixing it, and replayed
+        // logs had ~200 of them, enough to teach you to ignore Monty. The dropdown still shows it.
         default:
-            if let t = s.lastTest, !t.ok, s.state == "working" { return "failing@\(t.time)" }
             return nil
         }
     }
@@ -135,13 +135,12 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             n.title = "\(s.repo) requires your attention"
             n.body = s.stateReason
             n.sound = .default
-        } else if kind == "done" || kind.hasPrefix("finished") {
-            n.title = s.state == "done" ? "\(s.repo): all done" : "\(s.repo): your move"
-            n.body = s.title
-            n.sound = .default
         } else {
-            n.title = "\(s.repo): the tests have taken a turn"
-            n.body = s.lastTest?.summary ?? "Tests failing"
+            n.title = s.state == "done" ? "\(s.repo): all done" : "\(s.repo): your move"
+            // Tests left red at the end of a turn are worth knowing before you switch back.
+            let red = s.lastTest.map { $0.ok ? "" : " · \($0.summary)" } ?? ""
+            n.body = s.title + red
+            n.sound = .default
         }
         n.userInfo = ["repo": s.repoPath ?? s.cwd]
         c.add(UNNotificationRequest(identifier: "\(s.id)-\(kind)", content: n, trigger: nil))

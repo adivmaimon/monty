@@ -4,6 +4,9 @@
 
 - The menu bar app notifies you when Claude finishes a turn that ran 30 seconds or more, not only when a task list is complete (most sessions have none).
 - Notification permission is asked at launch, so the first alert is no longer lost.
+- A turn that leaves a background job or monitor running shows "Waiting on a background job" instead of "Your move", with no alert; the alert comes when Claude reports back. Turn length counts from your last prompt, so a quick report after a long job still alerts.
+- Prompts sent as blocks (from VS Code, with images or pasted text) and API errors now count, so their turns alert too.
+- No more alert for each failing test run mid-turn. A finished alert says if tests were left failing.
 - When nothing is at work, the menu bar says "your move" or "all done" instead of plan progress, and plans read "0 of 5 phases done" rather than "Phase 1 of 5".
 
 ## 0.4.0

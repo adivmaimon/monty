@@ -196,10 +196,13 @@ export class SessionTracker {
       this.takeTitle(content, e);
       // Meta lines (skill bodies, reminders) arrive mid-turn and answer nothing.
       if (e.isMeta) return;
-      this.m.promptSent();
+      this.m.promptSent(isHumanText(content) || content.includes('<command-name>'));
       return;
     }
     if (!Array.isArray(content)) return;
+    // VS Code and pasted images send the prompt as blocks, not a string: still a prompt,
+    // and it answers whatever was waiting. Missing this left the turn's start unknown.
+    if (!e.isMeta && !content.some((c: Json) => c?.type === 'tool_result') && content.some((c: Json) => c?.type === 'text' && typeof c.text === 'string' && isHumanText(c.text))) this.m.promptSent();
     for (const c of content) {
       if (c?.type === 'text' && typeof c.text === 'string' && !this.interrupted(c.text)) {
         this.noteCommand(c.text, time, e);
@@ -279,7 +282,8 @@ export class SessionTracker {
 /** A prompt the user typed, as opposed to a tag line (<command-…>, <local-command-…>) or a caveat. */
 function isHumanText(text: string): boolean {
   const t = text.trim();
-  return !!t && !t.startsWith('<') && !t.startsWith('Caveat:') && !t.startsWith('[Request interrupted');
+  // A prompt that opens with pasted text is still the person's.
+  return !!t && (!t.startsWith('<') || t.startsWith('<pasted_content')) && !t.startsWith('Caveat:') && !t.startsWith('[Request interrupted');
 }
 
 function normaliseStatus(s: unknown): TodoStatus {

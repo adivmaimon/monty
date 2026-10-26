@@ -44,6 +44,10 @@ interface Pending {
   edit?: { file: string; snippets: string[] };
 }
 
+// Tools that wake the agent again later without the person: a monitor, a scheduled wake-up,
+// a workflow. Any call with run_in_background counts too (Bash, Agent).
+const WAKES_LATER = new Set(['Monitor', 'ScheduleWakeup', 'CronCreate', 'Workflow']);
+
 const MAX_ACTIVITY = 60;
 // Effort is "right now": logs only record tokens when a reply finishes, so each reply
 // is a burst that fades with this time constant. 15s keeps the needle up through a run of
@@ -101,6 +105,12 @@ export class SessionModel {
   private lastStop: string | null = null;
   /** When the turn in flight began (0 between turns), and how the last finished one went. */
   private turnStartMs = 0;
+  /** When the person last said something. Background jobs end in a short turn of their own. */
+  private promptAtMs = 0;
+  /** This turn set up something that wakes the agent later (a monitor, a background job). */
+  private armed = false;
+  /** The turn ended with such a wake-up pending: the agent comes back on its own. */
+  private resumesItself = false;
   private lastTurn?: { ms: number; endedAt: string };
   private pending = new Map<string, Pending>();
   private sidechainPending = new Set<string>();
@@ -190,20 +200,33 @@ export class SessionModel {
     this.needsInput = undefined;
     // A finished turn has nothing in flight. Interrupted or queued-over tool calls
     // sometimes never get a result; without this they look stuck forever.
-    if (reason === 'end_turn') {
+    // stop_sequence is how an API error ("OAuth session expired") ends a turn: also yours to act on.
+    if (reason === 'end_turn' || reason === 'stop_sequence') {
       this.pending.clear();
       // Streaming repeats end_turn on every block of the last reply; the first one ends the turn.
-      if (this.turnStartMs && this.lastEventAt) this.lastTurn = { ms: this.lastEventMs - this.turnStartMs, endedAt: this.lastEventAt };
+      // Measured from the person's last prompt, not the turn's start: "run the suite in the
+      // background" ends quickly, and the turn that reports the result starts from a task
+      // notification and is quick too. The wait that matters is the one since you spoke.
+      // A turn that armed a wake-up ends with "still waiting on the benchmark": not your
+      // move, and not worth a banner. Replayed logs had one every 30 minutes overnight.
+      if (this.turnStartMs) this.resumesItself = this.armed;
+      if (this.turnStartMs && this.lastEventAt && !this.armed) this.lastTurn = { ms: this.lastEventMs - (this.promptAtMs || this.turnStartMs), endedAt: this.lastEventAt };
       this.turnStartMs = 0;
     }
   }
 
-  /** The person sent a new prompt: it answers anything the agent was waiting on. */
-  promptSent(): void {
+  /**
+   * A new prompt: it answers anything the agent was waiting on. `fromPerson` is false for
+   * what the tool sends on its own (a background job's task notification).
+   */
+  promptSent(fromPerson = true): void {
     this.needsInput = undefined;
     this.pending.clear();
     this.lastStop = null;
     this.turnStartMs = this.lastEventMs;
+    this.armed = false;
+    this.resumesItself = false;
+    if (fromPerson) this.promptAtMs = this.lastEventMs;
   }
 
   /** The person interrupted (Esc): the turn is over. */
@@ -213,12 +236,14 @@ export class SessionModel {
     // You stopped it, so you are watching: no "finished" for this one.
     this.turnStartMs = 0;
     this.lastTurn = undefined;
+    this.resumesItself = false;
   }
 
   /** `label` replaces the described activity line, for tools whose own message says it better. */
   toolStart(id: string, name: string, input: Json, at: number, time: string, label?: string): void {
     // Adapters that never report the prompt still get a turn: it began with its first tool call.
     if (!this.turnStartMs) this.turnStartMs = at;
+    if (WAKES_LATER.has(name) || input.run_in_background === true) this.armed = true;
     const described = describeTool(name, input, this.cwd, time);
     const act = described && label ? { ...described, text: label } : described;
     const p: Pending = { name, at, testCommand: name === 'Bash' && isTestCommand(input.command), activity: act };
@@ -411,6 +436,11 @@ export class SessionModel {
       // Say how long, so a quiet minute reads as a slow command rather than a stall.
       const ran = nowMs - oldest;
       return { state: 'working', reason: ran >= 60_000 ? `${what} (at it for ${Math.floor(ran / 60_000)} min)` : what };
+    }
+    if (this.resumesItself && (this.lastStop === 'end_turn' || this.lastStop === 'stop_sequence')) {
+      // Wake-ups are at most an hour apart, so allow a little over that before calling it idle.
+      if (quietMs > Math.max(this.opts.idleMs, 65 * 60_000)) return { state: 'idle', reason: 'Not a peep for some time' };
+      return { state: 'working', reason: 'Waiting on a background job; it will carry on by itself' };
     }
     if (quietMs > this.opts.idleMs) return { state: 'idle', reason: 'Not a peep for some time' };
     if (this.lastStop === 'end_turn' || this.lastStop === 'stop_sequence') {

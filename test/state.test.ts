@@ -187,6 +187,26 @@ test('SessionModel from events alone: a tool call, a test run, tokens, end of tu
   assert.equal(m.snapshot(Date.parse('2026-10-23T10:01:02Z')).lastTurn, undefined, 'you stopped it, so no "finished"');
 });
 
+test('a turn that arms a wake-up is a background wait, and the report after it counts from your prompt', () => {
+  const m = new SessionModel('/x/s', 's');
+  m.seen('2026-10-23T10:00:00Z');
+  m.promptSent();
+  m.toolStart('a', 'Bash', { command: 'npm run bench', run_in_background: true }, Date.parse('2026-10-23T10:00:01Z'), '2026-10-23T10:00:01Z');
+  m.toolEnd('a', { text: 'started', isError: false }, '2026-10-23T10:00:01Z');
+  m.seen('2026-10-23T10:00:05Z');
+  m.stop('end_turn');
+  const waiting = m.snapshot(Date.parse('2026-10-23T10:30:00Z'));
+  assert.equal(waiting.state, 'working', 'not your move: it carries on by itself');
+  assert.equal(waiting.lastTurn, undefined, 'no "finished" banner');
+  m.seen('2026-10-23T10:40:00Z');
+  m.promptSent(false); // the job's task notification
+  m.seen('2026-10-23T10:40:10Z');
+  m.stop('end_turn');
+  const s = m.snapshot(Date.parse('2026-10-23T10:40:11Z'));
+  assert.equal(s.state, 'your_turn');
+  assert.equal(s.lastTurn?.ms, 40 * 60_000 + 10_000, 'since you last spoke, not since the notification');
+});
+
 test('the headline follows the latest prompt that says something, not the first one', () => {
   const m = new SessionModel('/x.jsonl', 's1');
   m.title('tool', 'Set up the repo');
