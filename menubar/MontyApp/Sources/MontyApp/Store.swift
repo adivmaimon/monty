@@ -27,6 +27,7 @@ final class Store: ObservableObject {
     // just after launching us (the clock starts at launch).
     private let quitAfterOffline: TimeInterval = 30
     private var lastReachable = Date()
+    private var lastPoll = Date()
     private var timer: Timer?
     private var notifier = Notifier()
 
@@ -71,6 +72,10 @@ final class Store: ObservableObject {
         async let b: Bar? = fetch("/api/bar")
         let (ns, nb) = await (s, b)
         online = ns != nil
+        // A gap between polls means the Mac slept: start the 30s over rather than quit on
+        // the first poll after waking, before the core and VS Code are back.
+        if Date().timeIntervalSince(lastPoll) > 10 { lastReachable = Date() }
+        lastPoll = Date()
         if online {
             lastReachable = Date()
         } else if Date().timeIntervalSince(lastReachable) > quitAfterOffline {

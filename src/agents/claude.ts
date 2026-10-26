@@ -129,6 +129,11 @@ export class SessionTracker {
       m.title('tool', e.aiTitle);
       return;
     }
+    // A background job that finished mid-turn reports as a queued notification, not a prompt.
+    if (e.type === 'attachment' && e.attachment?.type === 'queued_command' && typeof e.attachment.prompt === 'string') {
+      this.noteJobDone(e.attachment.prompt);
+      return;
+    }
     if (e.type === 'attachment' && e.attachment?.type === 'model' && typeof e.attachment.identity?.modelId === 'string') {
       this.modelId = e.attachment.identity.modelId;
       return;
@@ -192,6 +197,7 @@ export class SessionTracker {
     const content = msg.content;
     if (typeof content === 'string') {
       if (this.interrupted(content)) return;
+      this.noteJobDone(content);
       this.noteCommand(content, time, e);
       this.takeTitle(content, e);
       // Meta lines (skill bodies, reminders) arrive mid-turn and answer nothing.
@@ -219,6 +225,13 @@ export class SessionTracker {
         this.tasks.push({ id: n?.[1] ?? String(this.tasks.length + 1), text: subject, status: 'pending' });
       }
     }
+  }
+
+  private noteJobDone(text: string): void {
+    // Only a final status ends a job: a monitor also sends notifications for each event it sees.
+    if (!/<status>(completed|killed|failed|stopped)/.test(text)) return;
+    const id = /<task-notification>[\s\S]*?<tool-use-id>([^<]+)<\/tool-use-id>/.exec(text)?.[1];
+    if (id) this.m.jobDone(id.trim());
   }
 
   /** "[Request interrupted by user]" (Esc) ends the turn with no end_turn line. */

@@ -63,8 +63,16 @@ server.on('error', (err: NodeJS.ErrnoException) => {
 // 20s covers a window reload; windows poll every 1.5s.
 const EDITOR_GONE_MS = 20_000;
 if (args.includes('--exit-when-idle')) {
+  // After the Mac sleeps, the first tick sees an old editor poll and would quit before VS Code
+  // has woken to poll again; the menu bar app then went with it. A late tick means we slept:
+  // give the editors a fresh 20s from now.
+  let lastTick = Date.now();
+  let graceUntil = 0;
   setInterval(() => {
-    if (msSinceEditorPoll() > EDITOR_GONE_MS) process.exit(0);
+    const now = Date.now();
+    if (now - lastTick > 15_000) graceUntil = now + EDITOR_GONE_MS;
+    lastTick = now;
+    if (now > graceUntil && msSinceEditorPoll() > EDITOR_GONE_MS) process.exit(0);
   }, 5000).unref();
 }
 console.log(`Monty is watching. Panel: http://127.0.0.1:${cfg.port}/`);

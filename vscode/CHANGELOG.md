@@ -10,6 +10,11 @@
 - Plans: the Status sentence shows under the title; "Phase 2 done" in a Status line and "(done)" on a heading count; phases written as bold paragraphs are found; "Phase N of M" names the first phase not done.
 - Plan view: markdown in section headings renders, table cells keep pipes inside code, code blocks under list items stay code, relative links open the linked doc, `__bold__` works.
 - The menu bar dropdown says when macOS is blocking Monty's notifications, with a link to System Settings.
+- Background waits only count jobs the turn itself started, end at the job's own deadline (a monitor's expiry), and ignore dev servers, so a finished turn no longer reads "working" for an hour.
+- No more stale "your move" banners mid-turn: a long silence before Claude's reply stays "working".
+- A session closed mid-tool-call goes idle instead of "at it for 169 min"; a finished turn stays "your move" for two hours instead of vanishing after 15 minutes.
+- The menu bar icon turns while a session works with no plan progress to show, so working and waiting no longer look the same.
+- The menu bar app and the core survive the Mac sleeping instead of quitting on wake.
 - Plan view: a long Goal stays readable in full and renders its markdown; plans written with `###` sections get collapsible sections; only short `**Key**: value` lines become chips; cancelled and parked plans say so instead of "Phase 1 of 3"; cleaner phase titles; `#L39` links open at the line; `~~strike~~`, `<br>` in tables and bold around italics render.
 - When nothing is at work, the menu bar says "your move" or "all done" instead of plan progress, and plans read "0 of 5 phases done" rather than "Phase 1 of 5".
 

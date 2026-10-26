@@ -199,12 +199,55 @@ test('a turn that arms a wake-up is a background wait, and the report after it c
   assert.equal(waiting.state, 'working', 'not your move: it carries on by itself');
   assert.equal(waiting.lastTurn, undefined, 'no "finished" banner');
   m.seen('2026-10-23T10:40:00Z');
+  m.jobDone('a');
   m.promptSent(false); // the job's task notification
   m.seen('2026-10-23T10:40:10Z');
   m.stop('end_turn');
   const s = m.snapshot(Date.parse('2026-10-23T10:40:11Z'));
   assert.equal(s.state, 'your_turn');
   assert.equal(s.lastTurn?.ms, 40 * 60_000 + 10_000, 'since you last spoke, not since the notification');
+});
+
+test('a dev server is not a job to wait on; a finished turn stays your move for an hour; a stale turn never comes back', () => {
+  const m = new SessionModel('/x/s', 's');
+  m.asksPermission = false;
+  m.seen('2026-10-23T10:00:00Z');
+  m.promptSent();
+  m.toolStart('a', 'Bash', { command: 'npm run dev', run_in_background: true }, Date.parse('2026-10-23T10:00:01Z'), '2026-10-23T10:00:01Z');
+  m.toolEnd('a', { text: 'started', isError: false }, '2026-10-23T10:00:01Z');
+  m.seen('2026-10-23T10:00:40Z');
+  m.stop('end_turn');
+  const s = m.snapshot(Date.parse('2026-10-23T11:00:00Z'));
+  assert.equal(s.state, 'your_turn');
+  assert.equal(s.lastTurn?.ms, 40_000);
+  m.seen('2026-10-23T11:01:00Z');
+  m.promptSent();
+  m.stop(null);
+  const quiet = m.snapshot(Date.parse('2026-10-23T11:05:00Z'));
+  assert.equal(quiet.state, 'working', 'four quiet minutes mid-turn are not your move');
+  assert.equal(quiet.lastTurn, undefined);
+});
+
+test('a monitor that expires without waking the agent hands the turn back to you', () => {
+  const m = new SessionModel('/x/s', 's');
+  m.seen('2026-10-23T10:00:00Z');
+  m.promptSent();
+  m.toolStart('mon', 'Monitor', { command: 'tail -f log', timeout_ms: 600_000 }, Date.parse('2026-10-23T10:00:01Z'), '2026-10-23T10:00:01Z');
+  m.toolEnd('mon', { text: 'Monitor started (expires in 10m)', isError: false }, '2026-10-23T10:00:02Z');
+  m.seen('2026-10-23T10:00:40Z');
+  m.stop('end_turn');
+  assert.equal(m.snapshot(Date.parse('2026-10-23T10:08:00Z')).state, 'working');
+  const late = m.snapshot(Date.parse('2026-10-23T10:15:00Z'));
+  assert.equal(late.state, 'your_turn');
+  assert.equal(late.lastTurn?.ms, 40_000);
+});
+
+test('a session closed mid-tool-call goes idle', () => {
+  const m = new SessionModel('/x/s', 's');
+  m.asksPermission = false;
+  const t = m.seen('2026-10-23T10:00:00Z');
+  m.toolStart('a', 'Write', { file_path: '/w/MEMORY.md', content: 'x' }, t, '2026-10-23T10:00:00Z');
+  assert.equal(m.snapshot(Date.parse('2026-10-23T10:20:00Z')).state, 'idle');
 });
 
 test('the headline follows the latest prompt that says something, not the first one', () => {

@@ -46,7 +46,25 @@ interface Pending {
 
 // Tools that wake the agent again later without the person: a monitor, a scheduled wake-up,
 // a workflow. Any call with run_in_background counts too (Bash, Agent).
-const WAKES_LATER = new Set(['Monitor', 'ScheduleWakeup', 'CronCreate', 'Workflow']);
+const WAKES_LATER = new Set(['ScheduleWakeup', 'CronCreate']);
+// Tools that run on and report back when they finish (as do Bash and Agent with run_in_background).
+const REPORTS_BACK = new Set(['Monitor', 'Workflow']);
+// Background commands that never report back: servers and watchers. Counting them as a job
+// to wait on kept a finished turn at "working" for an hour (67 of 194 launches in real logs).
+const LONG_LIVED = /\b(dev|serve|server|start|watch|preview|tail\s+-f)\b|http\.server|nodemon|vite(?!\s+build)/;
+// How long a background wait is believed. A monitor says when it expires ("expires in 30m"),
+// a wake-up its delay; other jobs get an hour, the longest wake-up Claude Code allows.
+const MONITOR_DEFAULT_MS = 30 * 60_000;
+const JOB_MAX_MS = 60 * 60_000;
+// The expiry notice and the turn it starts take a moment to land in the log.
+const WAKE_GRACE_MS = 2 * 60_000;
+// Silence this long with a tool call still open: the session was closed mid-call. Bash's own
+// timeout is 10 minutes; subagents legitimately run longer with the main log quiet.
+const ORPHAN_MS = 15 * 60_000;
+const ORPHAN_AGENT_MS = 65 * 60_000;
+// A finished turn stays "your move" this long before it rests. 15 minutes hid finished work
+// from anyone who stepped away for 20.
+const YOUR_TURN_MS = 2 * 60 * 60_000;
 
 const MAX_ACTIVITY = 60;
 // Effort is "right now": logs only record tokens when a reply finishes, so each reply
@@ -107,10 +125,15 @@ export class SessionModel {
   private turnStartMs = 0;
   /** When the person last said something. Background jobs end in a short turn of their own. */
   private promptAtMs = 0;
-  /** This turn set up something that wakes the agent later (a monitor, a background job). */
-  private armed = false;
-  /** The turn ended with such a wake-up pending: the agent comes back on its own. */
-  private resumesItself = false;
+  /**
+   * What this turn set going that will wake the agent again, by the launching call's id, with
+   * when it is due at the latest (a monitor's expiry, a wake-up's delay). Only this turn's:
+   * jobs from earlier turns may have died silently, and a turn that starts nothing new is the
+   * one that says "it's done".
+   */
+  private turnJobs = new Map<string, number>();
+  /** The turn ended with such a job pending: the agent comes back on its own, by this time. */
+  private resumesBy = 0;
   private lastTurn?: { ms: number; endedAt: string };
   private pending = new Map<string, Pending>();
   private sidechainPending = new Set<string>();
@@ -209,8 +232,9 @@ export class SessionModel {
       // notification and is quick too. The wait that matters is the one since you spoke.
       // A turn that armed a wake-up ends with "still waiting on the benchmark": not your
       // move, and not worth a banner. Replayed logs had one every 30 minutes overnight.
-      if (this.turnStartMs) this.resumesItself = this.armed;
-      if (this.turnStartMs && this.lastEventAt && !this.armed) this.lastTurn = { ms: this.lastEventMs - (this.promptAtMs || this.turnStartMs), endedAt: this.lastEventAt };
+      if (this.turnStartMs) this.resumesBy = this.turnJobs.size ? Math.max(...this.turnJobs.values()) : 0;
+      // Kept even while it waits: if the job's time passes with no word, it is your move after all.
+      if (this.turnStartMs && this.lastEventAt) this.lastTurn = { ms: this.lastEventMs - (this.promptAtMs || this.turnStartMs), endedAt: this.lastEventAt };
       this.turnStartMs = 0;
     }
   }
@@ -224,9 +248,17 @@ export class SessionModel {
     this.pending.clear();
     this.lastStop = null;
     this.turnStartMs = this.lastEventMs;
-    this.armed = false;
-    this.resumesItself = false;
+    this.turnJobs.clear();
+    this.resumesBy = 0;
+    // Whatever was shown as finished is history now. Left set, it resurfaced as a fresh
+    // "your move" banner the moment a later turn went quiet.
+    this.lastTurn = undefined;
     if (fromPerson) this.promptAtMs = this.lastEventMs;
+  }
+
+  /** A background job reported back (its task notification names the call that launched it). */
+  jobDone(toolUseId: string): void {
+    this.turnJobs.delete(toolUseId);
   }
 
   /** The person interrupted (Esc): the turn is over. */
@@ -236,14 +268,16 @@ export class SessionModel {
     // You stopped it, so you are watching: no "finished" for this one.
     this.turnStartMs = 0;
     this.lastTurn = undefined;
-    this.resumesItself = false;
+    this.resumesBy = 0;
   }
 
   /** `label` replaces the described activity line, for tools whose own message says it better. */
   toolStart(id: string, name: string, input: Json, at: number, time: string, label?: string): void {
     // Adapters that never report the prompt still get a turn: it began with its first tool call.
     if (!this.turnStartMs) this.turnStartMs = at;
-    if (WAKES_LATER.has(name) || input.run_in_background === true) this.armed = true;
+    if (WAKES_LATER.has(name)) this.turnJobs.set(id, at + (Number(input.delaySeconds) > 0 ? Number(input.delaySeconds) * 1000 : JOB_MAX_MS));
+    else if (name === 'Monitor') this.turnJobs.set(id, at + (Number(input.timeout_ms) > 0 ? Number(input.timeout_ms) : MONITOR_DEFAULT_MS));
+    else if (REPORTS_BACK.has(name) || (input.run_in_background === true && !(name === 'Bash' && LONG_LIVED.test(String(input.command ?? ''))))) this.turnJobs.set(id, at + JOB_MAX_MS);
     const described = describeTool(name, input, this.cwd, time);
     const act = described && label ? { ...described, text: label } : described;
     const p: Pending = { name, at, testCommand: name === 'Bash' && isTestCommand(input.command), activity: act };
@@ -280,6 +314,8 @@ export class SessionModel {
       p.activity.failed = true;
     }
     if (p.edit && !result.isError) this.lastEdit = { id, time, ...p.edit };
+    const expires = p.name === 'Monitor' ? /expires in (\d+)\s*m/.exec(result.text) : null;
+    if (expires && this.turnJobs.has(id)) this.turnJobs.set(id, p.at + Number(expires[1]) * 60_000);
     return true;
   }
 
@@ -432,23 +468,28 @@ export class SessionModel {
       if (this.asksPermission && nowMs - oldest > wait && quietMs > wait && first && first.name !== 'Task' && first.name !== 'Agent') {
         return { state: 'needs_input', reason: `Probably awaiting your permission: ${first.activity?.text ?? first.name}` };
       }
+      // Closed mid-call: nothing will ever answer it.
+      const agentCall = first && (first.name === 'Agent' || first.name === 'Task');
+      if (quietMs > (agentCall ? ORPHAN_AGENT_MS : ORPHAN_MS) && !(first && ASKING_TOOLS.has(first.name))) return { state: 'idle', reason: 'Not a peep for some time' };
       const what = first?.activity?.text ?? 'Working';
       // Say how long, so a quiet minute reads as a slow command rather than a stall.
       const ran = nowMs - oldest;
       return { state: 'working', reason: ran >= 60_000 ? `${what} (at it for ${Math.floor(ran / 60_000)} min)` : what };
     }
-    if (this.resumesItself && (this.lastStop === 'end_turn' || this.lastStop === 'stop_sequence')) {
-      // Wake-ups are at most an hour apart, so allow a little over that before calling it idle.
-      if (quietMs > Math.max(this.opts.idleMs, 65 * 60_000)) return { state: 'idle', reason: 'Not a peep for some time' };
+    // Past the job's time with no word: whatever was meant to wake it did not, so it is yours.
+    if (this.resumesBy && nowMs < this.resumesBy + WAKE_GRACE_MS && (this.lastStop === 'end_turn' || this.lastStop === 'stop_sequence')) {
       return { state: 'working', reason: 'Waiting on a background job; it will carry on by itself' };
     }
-    if (quietMs > this.opts.idleMs) return { state: 'idle', reason: 'Not a peep for some time' };
-    if (this.lastStop === 'end_turn' || this.lastStop === 'stop_sequence') {
+    if (this.lastStop === 'end_turn' || this.lastStop === 'stop_sequence' || this.lastStop === 'interrupted') {
+      if (quietMs > Math.max(this.opts.idleMs, YOUR_TURN_MS)) return { state: 'idle', reason: 'Not a peep for some time' };
+      if (this.lastStop === 'interrupted') return { state: 'your_turn', reason: 'You interrupted. Quite right.' };
       if (total > 0 && done === total) return { state: 'done', reason: 'Every task done. Splendid.' };
       return { state: 'your_turn', reason: `${this.agentName} has finished and awaits your reply` };
     }
-    if (this.lastStop === 'interrupted') return { state: 'your_turn', reason: 'You interrupted. Quite right.' };
-    if (quietMs > 90_000) return { state: 'your_turn', reason: 'Gone rather quiet' };
+    if (quietMs > this.opts.idleMs) return { state: 'idle', reason: 'Not a peep for some time' };
+    // No end of turn yet: long thinking, a compaction or an API retry can be silent for
+    // minutes. Calling that "your move" sent banners mid-turn; the turn's end line is the signal.
+    if (quietMs > 90_000) return { state: 'working', reason: `Quiet for ${Math.floor(quietMs / 60_000)} min; thinking, one presumes` };
     return { state: 'working', reason: 'Thinking, one presumes' };
   }
 }

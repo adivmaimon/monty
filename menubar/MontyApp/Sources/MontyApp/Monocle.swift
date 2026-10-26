@@ -57,6 +57,15 @@ enum Monocle {
                 arc.appendArc(withCenter: lens, radius: progR, startAngle: -90, endAngle: -90 + 360 * pct, clockwise: false)
                 arc.lineWidth = progW
                 arc.stroke()
+            } else if kind == "working" {
+                // A quarter arc that steps round a quarter turn per poll (2s): at work, with no
+                // progress to show. Still and empty would read the same as waiting on you.
+                let step = Double(Int(Date().timeIntervalSince1970 / 2) % 4) * 90
+                let arc = NSBezierPath()
+                arc.appendArc(withCenter: lens, radius: progR, startAngle: -90 + step, endAngle: step, clockwise: false)
+                arc.lineWidth = progW
+                arc.lineCapStyle = .round
+                arc.stroke()
             } else if !done {
                 // Glass highlight, upper left: 0.72 to 0.9 of a turn from 12 o'clock, as in icon.ts.
                 let sheen = NSBezierPath()

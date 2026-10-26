@@ -40,12 +40,13 @@ export function summarise(state: MontyState): BarSummary {
   if (!focus) return { pct: 0, badge: 'idle', text: '', needsYou, working };
   const { done, total } = focus.progress;
   const plan = focus.plan;
+  const atWork = focus.state === 'working';
   const failing = focus.state === 'working' && focus.lastTest && !focus.lastTest.ok;
-  const badge: Badge = needsYou ? 'attention' : failing ? 'failing' : focus.state === 'done' ? 'done' : 'none';
+  // Working and waiting looked the same when there was no plan to fill the ring.
+  const badge: Badge = needsYou ? 'attention' : failing ? 'failing' : focus.state === 'done' ? 'done' : atWork ? 'working' : 'none';
   // Beside the icon: what is happening, not what is open. Progress only while something
   // is at work; a "Phase 1 of 5" over a finished turn read as work in flight when there was none.
   // "needs you" outranks everything: it is the reason to look.
-  const atWork = focus.state === 'working';
   const text = needsYou ? 'needs you' : !atWork ? STATE_LABEL[focus.state].toLowerCase() : total ? `${done}/${total}` : plan ? plan.label : focus.repo;
   return {
     pct: !atWork && focus.state !== 'needs_input' ? 0 : total ? done / total : plan ? plan.done / plan.total : 0,

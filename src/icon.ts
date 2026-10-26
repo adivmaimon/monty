@@ -6,7 +6,8 @@
 
 import * as zlib from 'node:zlib';
 
-export type Badge = 'none' | 'attention' | 'failing' | 'done' | 'idle';
+/** working: something is at work with no progress to fill the ring; the native app draws a turning arc, the PNG draws none. */
+export type Badge = 'none' | 'working' | 'attention' | 'failing' | 'done' | 'idle';
 
 type Pt = [number, number];
 

@@ -58,7 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func accessibility(badge: String, text: String) -> String {
-        let what = badge == "attention" ? "a session needs you" : badge == "failing" ? "tests failing" : badge == "done" ? "done" : ""
+        let what = badge == "attention" ? "a session needs you" : badge == "failing" ? "tests failing" : badge == "done" ? "done" : badge == "working" ? "working" : ""
         return "Monty" + [text, what].filter { !$0.isEmpty }.map { ", \($0)" }.joined()
     }
 
