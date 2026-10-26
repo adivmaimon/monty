@@ -65,6 +65,7 @@ a.row:hover,button.row:hover{background:var(--card);color:var(--text)}
 .k-read{background:var(--peri)}.k-edit,.k-write{background:var(--accent)}.k-run,.k-test{background:var(--lilac)}.k-search,.k-web{background:#8a8398}.k-ask{background:var(--orchid)}.k-agent{background:#818cf8}.k-prompt{background:var(--text)}.k-tool,.k-plan{background:#8a8398}
 .cols{display:flex;flex-wrap:wrap;gap:12px}.cols>*{flex:1 1 280px;min-width:0}
 .ctx{display:flex;justify-content:space-between;font-size:12px;color:var(--soft);margin-bottom:5px}
+.scripted{font-size:12px;padding:6px 4px;align-self:center}
 .empty{padding:16px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:10px;font-size:12.5px}
 details>summary{cursor:pointer;list-style:none}
 details>summary::-webkit-details-marker{display:none}

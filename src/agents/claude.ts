@@ -114,10 +114,17 @@ export class SessionTracker {
     if (typeof e.gitBranch === 'string' && e.gitBranch) m.branch = e.gitBranch;
     if (typeof e.sessionId === 'string' && e.sessionId) m.id = e.sessionId;
 
+    // Newer Claude Code says who started each turn. "sdk" is a program (`claude -p`, the Agent
+    // SDK): a benchmark spawning runs, not someone at a keyboard. Such runs never stop for a
+    // permission prompt either: a tool they may not use fails at once.
+    if (e.type === 'user' && e.turnOrigin === 'sdk') {
+      m.scripted = true;
+      m.asksPermission = false;
+    }
     if (typeof e.permissionMode === 'string') {
       // Auto and bypassPermissions decide on their own, so a quiet tool is never a prompt.
       // The mode comes from the last prompt line, so a mid-turn switch lags a turn.
-      m.asksPermission = e.permissionMode !== 'auto' && e.permissionMode !== 'bypassPermissions';
+      m.asksPermission = !m.scripted && e.permissionMode !== 'auto' && e.permissionMode !== 'bypassPermissions';
     }
 
     if (e.type === 'summary' && typeof e.summary === 'string') {
@@ -202,13 +209,16 @@ export class SessionTracker {
       this.takeTitle(content, e);
       // Meta lines (skill bodies, reminders) arrive mid-turn and answer nothing.
       if (e.isMeta) return;
-      this.m.promptSent(isHumanText(content) || content.includes('<command-name>'));
+      this.m.promptSent(typeof e.turnOrigin === 'string' ? e.turnOrigin === 'human' : isHumanText(content) || content.includes('<command-name>'));
       return;
     }
     if (!Array.isArray(content)) return;
     // VS Code and pasted images send the prompt as blocks, not a string: still a prompt,
     // and it answers whatever was waiting. Missing this left the turn's start unknown.
-    if (!e.isMeta && !content.some((c: Json) => c?.type === 'tool_result') && content.some((c: Json) => c?.type === 'text' && typeof c.text === 'string' && isHumanText(c.text))) this.m.promptSent();
+    if (!e.isMeta && !content.some((c: Json) => c?.type === 'tool_result') && content.some((c: Json) => c?.type === 'text' && typeof c.text === 'string' && isHumanText(c.text))) {
+      // turnOrigin, when the log has it, says outright whether a person sent this.
+      this.m.promptSent(typeof e.turnOrigin === 'string' ? e.turnOrigin === 'human' : true);
+    }
     for (const c of content) {
       if (c?.type === 'text' && typeof c.text === 'string' && !this.interrupted(c.text)) {
         this.noteCommand(c.text, time, e);

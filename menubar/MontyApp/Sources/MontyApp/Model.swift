@@ -6,6 +6,10 @@ import Foundation
 struct MontyState: Decodable {
     var sessions: [Session]
     var projects: [Project]
+    /// Runs a program started (`claude -p`, the SDK): counted, never listed or notified. Older cores leave it out.
+    var scripted: [Scripted]?
+
+    struct Scripted: Decodable { var repo: String; var state: String }
 }
 
 struct Session: Decodable, Identifiable {

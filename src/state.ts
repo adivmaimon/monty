@@ -134,14 +134,18 @@ export class MontyStore {
   }
 
   state(nowMs = Date.now()): MontyState {
-    const sessions = [...this.trackers]
+    const all = [...this.trackers]
       .map(([k, t]) => this.guard(k, () => t.snapshot(nowMs)))
       .filter((s): s is Session => !!s)
       .map((s) => withPlan(withRepo(s, this.cfg.projectRoots, [...this.registered.keys()]), this.projects))
-      .filter((s) => s.lastEventAt)
+      .filter((s) => s.lastEventAt);
+    const sessions = all
+      .filter((s) => !s.scripted)
       .sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || (b.lastEventAt ?? '').localeCompare(a.lastEventAt ?? ''))
       .slice(0, MAX_SESSIONS);
-    return { generatedAt: new Date(nowMs).toISOString(), sessions, projects: this.projects, setups: this.setups, roots: this.cfg.projectRoots };
+    // A finished run is just over; only the ones still going are worth a mention.
+    const scripted = all.filter((s) => s.scripted && s.state === 'working').map((s) => ({ repo: s.repo, cwd: s.cwd, state: s.state }));
+    return { generatedAt: new Date(nowMs).toISOString(), sessions, projects: this.projects, setups: this.setups, roots: this.cfg.projectRoots, scripted };
   }
 
   private emitIfChanged(): void {
@@ -180,6 +184,7 @@ export function scopeState(state: MontyState, repo: string | null | undefined): 
     ...state,
     scope: r,
     sessions: state.sessions.filter((s) => s.cwd && (under(s.cwd, r) || under(r, s.cwd))),
+    scripted: state.scripted?.filter((s) => s.cwd && (under(s.cwd, r) || under(r, s.cwd))),
     projects: state.projects.filter((p) => under(p.repoPath, r) || under(r, p.repoPath)),
     setups: state.setups?.filter((x) => under(x.repoPath, r) || under(r, x.repoPath)),
   };

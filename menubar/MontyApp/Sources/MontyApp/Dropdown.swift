@@ -194,6 +194,12 @@ struct Dropdown: View {
                 ForEach(live) { s in sessionCard(s) }
             }
             .padding(.horizontal, 10).padding(.bottom, 12)
+            if let xs = store.state?.scripted, !xs.isEmpty {
+                Text("\(xs.count) scripted run\(xs.count == 1 ? "" : "s") at work, not shown")
+                    .font(.system(size: 11.5)).foregroundStyle(Color.muted)
+                    .padding(.horizontal, 16).padding(.bottom, 12)
+                    .help("Sessions started by a program (Claude Code SDK or claude -p). They are not listed and never notify.")
+            }
         }
     }
 

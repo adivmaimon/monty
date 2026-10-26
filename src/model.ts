@@ -115,6 +115,8 @@ export class SessionModel {
   /** Which tool the session is from, and its name in state reasons ("Claude has a question for you"). */
   agent: AgentTool = 'claude-code';
   agentName = 'Claude';
+  /** A program drives this session (Claude Code SDK, `claude -p`): no one to tell. */
+  scripted = false;
 
   private titles: Partial<Record<TitleSource, string>> = {};
   /** Prompts that said something (see promptTitle). */
@@ -450,6 +452,7 @@ export class SessionModel {
       subagentsRunning: Math.max(agents, this.sidechainPending.size > 0 ? 1 : 0),
       throughput: this.throughput(nowMs),
       lastTurn: state === 'your_turn' || state === 'done' ? this.lastTurn : undefined,
+      scripted: this.scripted || undefined,
     };
   }
 

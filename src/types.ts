@@ -75,6 +75,8 @@ export interface Session {
   lastTest?: { ok: boolean; summary: string; time: string };
   /** The turn that just ended with a reply, while the session waits on you: how long it ran, when it ended. */
   lastTurn?: { ms: number; endedAt: string };
+  /** Started by a program, not typed by a person (see MontyState.scripted). */
+  scripted?: boolean;
   /** The most recent edit that succeeded, for VS Code's follow mode. */
   lastEdit?: LastEdit;
   /** The skill or slash command most recently invoked: a Skill tool call, or a <command-name> line. */
@@ -200,4 +202,9 @@ export interface MontyState {
   roots: string[];
   /** Set when the state is filtered to one repo (a VS Code workspace). */
   scope?: string;
+  /**
+   * Sessions a program started (Claude Code SDK / `claude -p`, e.g. a benchmark spawning
+   * dozens of runs). Nobody is watching them, so the ones at work are counted here, not listed or notified.
+   */
+  scripted?: { repo: string; cwd: string; state: SessionState }[];
 }

@@ -322,3 +322,12 @@ test('throughput: each reply counted once, new input and output only, fading ove
   assert.equal(later.inPerMin, Math.round(10000 / Math.E));
   assert.equal(t.snapshot(Date.parse('2026-10-23T10:05:00Z')).throughput.level, 0, 'back to zero when quiet');
 });
+
+test('a session a program started (turnOrigin "sdk") is scripted and never guesses a permission prompt', () => {
+  const t = new SessionTracker('/x/run.jsonl');
+  t.feedLine(JSON.stringify({ type: 'user', turnOrigin: 'sdk', timestamp: '2026-10-26T10:00:00Z', cwd: '/w/Whetstone/work/run-1', message: { role: 'user', content: '/optimize project-perf' } }));
+  t.feedLine(JSON.stringify({ type: 'assistant', timestamp: '2026-10-26T10:00:05Z', message: { role: 'assistant', stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'b1', name: 'Bash', input: { command: 'npm run bench' } }] } }));
+  const s = t.snapshot(Date.parse('2026-10-26T10:02:00Z'));
+  assert.equal(s.scripted, true);
+  assert.equal(s.state, 'working');
+});

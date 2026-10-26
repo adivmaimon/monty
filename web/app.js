@@ -148,18 +148,25 @@
 
   // ---------- live session ----------
 
+  // Runs a program started (a benchmark spawning `claude -p`): one quiet line, not a card each.
+  function scriptedNote() {
+    const xs = state.scripted || [];
+    if (!xs.length) return '';
+    return `<div class="scripted muted" title="Sessions started by a program (Claude Code SDK or claude -p). They are not listed and never notify.">${xs.length} scripted run${xs.length > 1 ? 's' : ''} at work, not shown</div>`;
+  }
+
   function renderLive() {
     const sessions = state.sessions;
     const live = sessions.filter((s) => s.state !== 'idle');
     const shown = live.length ? live : sessions.slice(0, 1);
     if (!selected || !shown.some((s) => s.id === selected)) selected = shown[0] && shown[0].id;
 
-    $('sessionTabs').innerHTML = shown.length > 1 ? shown.map((s) => `
+    $('sessionTabs').innerHTML = (shown.length > 1 ? shown.map((s) => `
       <button class="tab" data-id="${esc(s.id)}" aria-current="${s.id === selected}" title="${esc(s.title)}">
         ${progOf(s) ? segBar(progOf(s).done, progOf(s).total, busy(s), 'mini') : ''}
         <span class="clamp1" style="max-width:220px">${esc(scope ? s.title : s.repo)}</span>
         <span class="tag st-${s.state}">${STATE_LABEL[s.state]}</span>${agentTag(s)}
-      </button>`).join('') : '';
+      </button>`).join('') : '') + scriptedNote();
     $('sessionTabs').querySelectorAll('.tab').forEach((b) => (b.onclick = () => { selected = b.dataset.id; renderAll(); }));
 
     const s = shown.find((x) => x.id === selected);
@@ -490,7 +497,7 @@
     // Context and tests are secondary: below the plans, for the session the sidebar leads with.
     $('stats').innerHTML = sessions.length ? statsCard(sessions[0], true) : '';
     $('detail').innerHTML = (sessions.length ? sessions.slice(0, 3).map(sCard).join('')
-      : `<div class="empty">No session in ${esc(base(scope || 'this repo'))} at present. I shall keep an eye out.</div>`);
+      : `<div class="empty">No session in ${esc(base(scope || 'this repo'))} at present. I shall keep an eye out.</div>`) + scriptedNote();
     $('extra').innerHTML = '';
     $('footer').innerHTML = `${vscode ? `<div class="box followcard">${followToggle()}</div>` : ''}<button class="btn wide" data-details>Open details</button>`;
     $('plans').innerHTML = plans.length ? `<div class="box lead"><h2>Plans</h2>${plans.map(planRow).join('')}

@@ -28,6 +28,7 @@
 - Spec Kit: the spec's Status line and original request show in the plan view.
 - Opening any file of an OpenSpec change or a Kiro / Spec Kit feature shows its progress, with links to the other files.
 - Double-backtick code spans render.
+- Sessions a program started (Claude Code SDK or `claude -p`, such as a benchmark spawning dozens of runs) are no longer listed, never notify, and never guess at permission prompts. One line says how many are at work.
 - Plan view: a long Goal stays readable in full and renders its markdown; plans written with `###` sections get collapsible sections; only short `**Key**: value` lines become chips; cancelled and parked plans say so instead of "Phase 1 of 3"; cleaner phase titles; `#L39` links open at the line; `~~strike~~`, `<br>` in tables and bold around italics render.
 - When nothing is at work, the menu bar says "your move" or "all done" instead of plan progress, and plans read "0 of 5 phases done" rather than "Phase 1 of 5".
 
