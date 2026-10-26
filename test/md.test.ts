@@ -75,3 +75,7 @@ test('strike, <br> in cells, bold around italics, bracketed link text, #L anchor
   assert.match(out.preamble, /data-open="\/r\/p\/x.tsx" data-line="58"/);
   assert.equal(out.sections.map((s: { title: string }) => s.title).join(','), 'One,Two');
 });
+
+test('double-backtick code spans can hold backticks', () => {
+  assert.match(render('Fences start with `` ``` `` here.'), /<code>```<\/code>/);
+});

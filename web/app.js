@@ -546,7 +546,9 @@
   }
 
   function renderDoc() {
-    const p = state && state.projects.find((x) => x.file === docFile);
+    // A spec framework splits one change across files (proposal, design, tasks): any of them
+    // shows the change's header and progress.
+    const p = state && (state.projects.find((x) => x.file === docFile) || state.projects.find((x) => x.docs && x.docs.includes(docFile)));
     $('viewNice').setAttribute('aria-pressed', String(!rawView));
     $('viewRaw').setAttribute('aria-pressed', String(rawView));
     if (rawView) {
@@ -627,7 +629,9 @@
     $('doc').querySelectorAll('details.sec').forEach((d) => (d.ontoggle = () => secOpen.set(Number(d.dataset.i), d.open)));
     renderMermaid($('doc'));
     const refList = [...refs].slice(0, 30);
-    $('docSide').innerHTML = `${progressCard}
+    const others = p && p.docs ? p.docs.filter((f) => f !== docFile) : [];
+    const inChange = others.length ? `<div class="side"><h2>In this ${p.source === 'openspec' ? 'change' : 'spec'}</h2>${others.map((f) => `<a class="mono" href="#" data-doc="${esc(f)}" title="${esc(f)}">${esc(f.slice(p.file.replace(/\/[^/]*$/, '').length + 1))}</a>`).join('')}</div>` : '';
+    $('docSide').innerHTML = `${progressCard}${inChange}
       ${md.sections.length > 1 ? `<div class="side"><h2>Sections</h2>${md.sections.map((s, i) => `<a href="#" data-sec="${i}">${esc(s.title.replace(/[`*]|__/g, ''))}</a>`).join('')}</div>` : ''}
       ${refList.length ? `<div class="side"><h2>Files mentioned</h2>${refList.map((r) => { const [f, l] = r.split(':'); return `<a class="mono" href="#" data-open="${esc(repoPath + '/' + f)}" data-line="${l ? l.split(/[,-]/)[0] : ''}" title="${esc(r)}">${esc(base(f))}${l ? ':' + esc(l.split(/[,-]/)[0]) : ''}</a>`; }).join('')}</div>` : ''}`;
     $('docSide').querySelectorAll('[data-sec]').forEach((a) => (a.onclick = (e) => {

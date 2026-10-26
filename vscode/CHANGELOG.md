@@ -19,6 +19,11 @@
 - A session closed mid-tool-call goes idle instead of "at it for 169 min"; a finished turn stays "your move" for two hours instead of vanishing after 15 minutes.
 - The menu bar icon turns while a session works with no plan progress to show, so working and waiting no longer look the same.
 - The menu bar app and the core survive the Mac sleeping instead of quitting on wake.
+- OpenSpec: task sections (`## 1. Storage`) show as phases, a change whose tasks are all ticked says "not archived yet", and a generic `# Proposal` heading no longer becomes the name.
+- Kiro and cc-sdd: specs are named after their folder instead of "Requirements Document", top-level tasks show as phases without double-counting their sub-tasks, and `spec.json` gives the stage and what awaits approval.
+- Spec Kit: the spec's Status line and original request show in the plan view.
+- Opening any file of an OpenSpec change or a Kiro / Spec Kit feature shows its progress, with links to the other files.
+- Double-backtick code spans render.
 - Plan view: a long Goal stays readable in full and renders its markdown; plans written with `###` sections get collapsible sections; only short `**Key**: value` lines become chips; cancelled and parked plans say so instead of "Phase 1 of 3"; cleaner phase titles; `#L39` links open at the line; `~~strike~~`, `<br>` in tables and bold around italics render.
 - When nothing is at work, the menu bar says "your move" or "all done" instead of plan progress, and plans read "0 of 5 phases done" rather than "Phase 1 of 5".
 

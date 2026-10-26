@@ -135,3 +135,47 @@ test('phase titles: "**Phase 1.** text", a bare first mention, and "DONE, commit
   const p = parseClaudeProject('# X\n\n## Phase 1 - A\n\n## Phase 2 - B\n', { ...where, bucket: 'cancelled' });
   assert.equal(p.label, 'cancelled');
 });
+
+// Spec frameworks, in the shapes their own tools write (formats checked against OpenSpec's
+// repo, cc-sdd's .kiro/specs examples and Spec Kit's templates, Oct 2026).
+import * as nodePath from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { scanRepo } from '../src/projects.js';
+const FIX = nodePath.resolve(nodePath.dirname(fileURLToPath(import.meta.url)), '..', '..', 'test', 'fixtures');
+
+test('OpenSpec: numbered task sections are phases, a "# Proposal" heading is not the name, the change lists its files', () => {
+  const ps = scanRepo(nodePath.join(FIX, 'openspec-repo'));
+  const open = ps.find((p) => p.file.includes('add-tags'));
+  assert.equal(open?.name, 'Add tags');
+  assert.equal(open?.status, 'active');
+  assert.deepEqual(open?.phases.map((p) => [p.title, p.done]), [['Storage', true], ['API', false], ['Verification', false]]);
+  assert.equal(open?.label, 'Phase 2 of 3');
+  assert.equal(open?.goal, 'People cannot find photos once an album passes a few hundred. Tags let them filter.');
+  assert.deepEqual(open?.docs?.map((f) => f.split('add-tags/')[1]), ['design.md', 'proposal.md', 'specs/photos/spec.md', 'tasks.md']);
+  const archived = ps.find((p) => p.file.includes('add-albums'));
+  assert.equal(archived?.status, 'completed');
+  assert.equal(archived?.name, 'Add albums');
+});
+
+test('Kiro / cc-sdd: top-level tasks are phases counted through their sub-tasks; spec.json gives the stage', () => {
+  const ps = scanRepo(nodePath.join(FIX, 'kiro-repo'));
+  const albums = ps.find((p) => p.file.includes('photo-albums'));
+  assert.equal(albums?.name, 'Photo albums');
+  assert.deepEqual(albums?.phases.map((p) => p.done), [true, false, false]);
+  assert.deepEqual(albums?.tasks, { done: 3, total: 5 }, 'groups with sub-tasks count through them; a bare top-level task counts once');
+  assert.equal(albums?.statusText, 'Tasks generated; tasks not yet approved');
+  assert.equal(albums?.goal, 'Users organise photos into albums grouped by date.');
+  const search = ps.find((p) => p.file.includes('/search/'));
+  assert.deepEqual(search?.phases.map((p) => [p.title, p.done]), [['Index', true], ['Query', false]], 'newer cc-sdd: "## 1. Index" headings');
+  assert.equal(search?.goal, '写真を検索できるようにする。', 'an intro heading in another language still gives the goal');
+});
+
+test('Spec Kit: "## Phase N:" groups are phases; spec.md gives the status and the request', () => {
+  const [p] = scanRepo(nodePath.join(FIX, 'spec-kit-repo'));
+  assert.equal(p?.name, 'Photo Tags');
+  assert.deepEqual(p?.phases.map((x) => x.done), [true, true, false, false, false]);
+  assert.equal(p?.label, 'Phase 3 of 5');
+  assert.deepEqual(p?.tasks, { done: 4, total: 8 });
+  assert.equal(p?.statusText, 'In Progress');
+  assert.equal(p?.goal, 'Let people tag photos and filter an album by tag');
+});

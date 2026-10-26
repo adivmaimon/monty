@@ -38,7 +38,9 @@
 
   function inline(text, ctx) {
     const codes = [];
-    let s = text.replace(/`([^`]+)`/g, (_, c) => {
+    // ``a ` b`` is a code span that can hold backticks; plain `x` the usual one.
+    let s = text.replace(/``\s?(.+?)\s?(?<!`)``(?!`)|`([^`]+)`/g, (_, dbl, one) => {
+      const c = dbl ?? one;
       codes.push(refLink(c, ctx.repoPath) || `<code>${esc(c)}</code>`);
       if (ctx.refs && FILE_REF.test(c) && c.includes('/')) ctx.refs.add(c);
       return `\u0000${codes.length - 1}\u0000`;

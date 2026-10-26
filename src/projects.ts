@@ -209,9 +209,14 @@ function phasesDoneInStatus(statusText?: string): (n: number) => boolean {
   return (n) => nums.includes(n);
 }
 
+// What the frameworks' templates put as the heading of every file: names the file, not the work.
+// Every Kiro spec was "Requirements Document"; an OpenSpec change was "Proposal".
+const GENERIC_TITLE = /^(change\s+)?(proposal|requirements(\s+document)?|design(\s+document)?|tasks|task\s+list|implementation\s+plan|feature\s+specification|specification|spec|plan)$/i;
+
 function findTitle(lines: string[]): string | undefined {
   const h = lines.find((l) => /^#\s+\S/.test(l));
   const t = h?.replace(/^#\s+/, '').replace(/^(Plan|Project|Spec)\s*:\s*/i, '').trim();
+  if (t && GENERIC_TITLE.test(t)) return undefined;
   // Some plans use the file slug as the heading ("# project-v1-foundation").
   if (t && /^[a-z0-9]+(-[a-z0-9]+)+$/.test(t)) return prettyName(t);
   return t;
@@ -284,6 +289,9 @@ function scanOpenSpec(repoPath: string): Project[] {
     if (!ptext && !ttext) return;
     const tasks = countCheckboxes(ttext);
     const status: ProjectStatus = archived ? 'completed' : tasks.total && tasks.done === tasks.total ? 'completed' : tasks.done > 0 ? 'active' : 'pending';
+    // Every task ticked but still in changes/: built, waiting for `openspec archive`.
+    const statusText = !archived && status === 'completed' ? 'All tasks done; not archived yet' : undefined;
+    const phases = phasesFromCheckboxGroups(ttext, NUMBERED_SECTION);
     const plines = ptext.split('\n');
     const slug = path.basename(dir).replace(/^\d{4}-\d{2}-\d{2}-/, '');
     out.push({
@@ -294,10 +302,12 @@ function scanOpenSpec(repoPath: string): Project[] {
       name: findTitle(plines)?.replace(/^Change\s*:\s*/i, '') ?? prettyName(slug),
       file: ptext ? proposal : tasksFile,
       status,
+      statusText,
       goal: findSection(plines, 'why') ?? findSection(plines, 'goal'),
-      phases: [],
+      phases,
       tasks,
-      progress: tasks.total ? { ...tasks, basis: 'tasks' } : { done: archived ? 1 : 0, total: 1, basis: 'status' },
+      progress: phases.length > 1 ? { done: phases.filter((ph) => ph.done).length, total: phases.length, basis: 'phases' } : tasks.total ? { ...tasks, basis: 'tasks' } : { done: archived ? 1 : 0, total: 1, basis: 'status' },
+      docs: changeDocs(dir),
       updatedAt: mtime(ttext ? tasksFile : proposal).toISOString(),
     });
   };
@@ -329,12 +339,18 @@ function scanCheckboxSpecs(repoPath: string, relDir: string, source: ProjectSour
     const ttext = readText(tasksFile);
     const mainFile = ['spec.md', 'requirements.md', 'design.md'].map((f) => path.join(dir, f)).find((f) => fs.existsSync(f));
     if (ttext === null && !mainFile) continue;
-    const tasks = countCheckboxes(ttext ?? '');
+    // Kiro numbers its tasks "1." with sub-tasks "1.1": the top-level ones are groups, so
+    // they become phases and only the sub-tasks count as tasks.
+    // Newer cc-sdd writes the groups as "## 1. Foundation" headings instead, as OpenSpec does.
+    const kiroGroups = source === 'kiro' ? kiroPhases(ttext ?? '') : [];
+    const phases = source === 'spec-kit' ? phasesFromCheckboxGroups(ttext ?? '') : kiroGroups.length ? kiroGroups : phasesFromCheckboxGroups(ttext ?? '', NUMBERED_SECTION);
+    const tasks = kiroGroups.length ? countKiroLeaves(ttext ?? '') : countCheckboxes(ttext ?? '');
     const mtext = mainFile ? readText(mainFile) ?? '' : '';
     const mlines = mtext.split('\n');
     const status: ProjectStatus = tasks.total && tasks.done === tasks.total ? 'completed' : tasks.done > 0 ? 'active' : 'pending';
-    // Spec Kit groups tasks under "## Phase N: Setup" headings; reuse the phase reader.
-    const phases = source === 'spec-kit' ? phasesFromCheckboxGroups(ttext ?? '') : [];
+    // Spec Kit's spec.md carries "**Status**: Draft" and the request it came from.
+    const statusText = source === 'kiro' ? kiroStage(path.join(dir, 'spec.json')) : findStatusLine(mlines);
+    const input = /^\*\*Input\*\*:\s*(?:User description:\s*)?"?(.+?)"?\s*$/m.exec(mtext)?.[1];
     out.push({
       id: `${repo}:${source}:${d.name}`,
       repo,
@@ -343,28 +359,33 @@ function scanCheckboxSpecs(repoPath: string, relDir: string, source: ProjectSour
       name: findTitle(mlines)?.replace(/^(Feature Specification|Requirements Document|Feature)\s*:\s*/i, '') ?? prettyName(d.name.replace(/^\d+-/, '')),
       file: ttext !== null ? tasksFile : (mainFile as string),
       status,
-      goal: findSection(mlines, 'introduction') ?? findSection(mlines, 'summary'),
+      statusText,
+      goal: findSection(mlines, 'introduction') ?? findSection(mlines, 'summary') ?? findSection(mlines, 'overview') ?? input ?? firstParagraph(mlines),
       phases,
       tasks,
-      progress: tasks.total ? { ...tasks, basis: 'tasks' } : { done: 0, total: 1, basis: 'status' },
+      progress: phases.length > 1 ? { done: phases.filter((ph) => ph.done).length, total: phases.length, basis: 'phases' } : tasks.total ? { ...tasks, basis: 'tasks' } : { done: 0, total: 1, basis: 'status' },
+      docs: changeDocs(dir),
       updatedAt: mtime(ttext !== null ? tasksFile : (mainFile as string)).toISOString(),
     });
   }
   return out;
 }
 
+/** OpenSpec's tasks.md: "## 1. Tool support", "## 2. Documentation". */
+const NUMBERED_SECTION = /^#{2,3}\s+(\d+)\.\s+(.*)$/;
+
 /** A phase is done when every checkbox under its heading is ticked. */
-export function phasesFromCheckboxGroups(text: string): Phase[] {
+export function phasesFromCheckboxGroups(text: string, heading: RegExp = PHASE_HEADING): Phase[] {
   const phases: Phase[] = [];
   let current: (Phase & { boxes: number; ticked: number }) | null = null;
   const flush = () => {
     if (current) phases.push({ n: current.n, title: current.title, done: current.boxes > 0 && current.ticked === current.boxes });
   };
   for (const l of text.split('\n')) {
-    const m = PHASE_HEADING.exec(l.trim());
+    const m = heading.exec(l.trim());
     if (m) {
       flush();
-      current = { n: Number(m[1]), title: (m[2] ?? '').trim(), done: false, boxes: 0, ticked: 0 };
+      current = { n: Number(m[1]), title: (m[2] ?? '').replace(/[*_`]/g, '').trim(), done: false, boxes: 0, ticked: 0 };
       continue;
     }
     const b = /^\s*[-*]\s*\[([ xX])\]/.exec(l);
@@ -375,4 +396,87 @@ export function phasesFromCheckboxGroups(text: string): Phase[] {
   }
   flush();
   return phases;
+}
+
+// ---------- Kiro and cc-sdd ----------
+
+const KIRO_TASK = /^(\s*)[-*]\s*\[([ xX~-])\]\*?\s*(\d+)(\.\d+)*\.?\s+(.*)$/;
+
+/** Top-level numbered tasks ("- [ ] 2. Build auth") with their sub-tasks: done when all sub-tasks are, or it is ticked itself. */
+export function kiroPhases(text: string): Phase[] {
+  const phases: (Phase & { boxes: number; ticked: number; self: boolean })[] = [];
+  for (const l of text.split('\n')) {
+    const m = KIRO_TASK.exec(l);
+    if (!m) continue;
+    const ticked = m[2] === 'x' || m[2] === 'X';
+    if (!m[4] && !(m[1] ?? '').length) {
+      phases.push({ n: Number(m[3]), title: (m[5] ?? '').replace(/[*_`]/g, '').trim(), done: false, boxes: 0, ticked: 0, self: ticked });
+    } else if (phases.length) {
+      const cur = phases[phases.length - 1] as (typeof phases)[number];
+      cur.boxes++;
+      if (ticked) cur.ticked++;
+    }
+  }
+  return phases.map(({ n, title, boxes, ticked, self }) => ({ n, title, done: self || (boxes > 0 && ticked === boxes) }));
+}
+
+/** Tasks without counting a group and its sub-tasks twice: a group with sub-tasks counts through them. */
+export function countKiroLeaves(text: string): { done: number; total: number } {
+  const rows = text.split('\n').map((l) => KIRO_TASK.exec(l)).filter((m): m is RegExpExecArray => !!m);
+  let done = 0;
+  let total = 0;
+  rows.forEach((m, i) => {
+    const top = !m[4] && !(m[1] ?? '').length;
+    const next = rows[i + 1];
+    if (top && next && (next[4] || (next[1] ?? '').length)) return; // a group: its sub-tasks count
+    total++;
+    if (m[2] === 'x' || m[2] === 'X') done++;
+  });
+  return { done, total };
+}
+
+/** cc-sdd's spec.json says which stage the spec is at and what is approved. */
+function kiroStage(file: string): string | undefined {
+  const raw = readText(file);
+  if (!raw) return undefined;
+  try {
+    const j = JSON.parse(raw) as { phase?: string; approvals?: Record<string, { approved?: boolean }> };
+    const stage = typeof j.phase === 'string' ? j.phase.replace(/[-_]/g, ' ') : '';
+    const waiting = Object.entries(j.approvals ?? {}).filter(([, v]) => v && v.approved === false).map(([k]) => k);
+    const text = [stage && stage.charAt(0).toUpperCase() + stage.slice(1), waiting.length ? `${waiting.join(' and ')} not yet approved` : ''].filter(Boolean).join('; ');
+    return text || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The other markdown in a change or feature folder (design, tasks, research, specs/*), so the view can link them. */
+function changeDocs(dir: string): string[] {
+  const out: string[] = [];
+  const walk = (d: string, depth: number) => {
+    for (const e of readDir(d)) {
+      const f = path.join(d, e.name);
+      if (e.isDirectory() && depth < 3) walk(f, depth + 1);
+      else if (e.isFile() && e.name.endsWith('.md')) out.push(f);
+    }
+  };
+  walk(dir, 0);
+  return out.sort().slice(0, 40);
+}
+
+/** The first paragraph under the first section heading, for files whose intro heading is in another language. */
+function firstParagraph(lines: string[]): string | undefined {
+  const h = lines.findIndex((l) => /^##\s/.test(l));
+  if (h < 0) return undefined;
+  const para: string[] = [];
+  for (const l of lines.slice(h + 1)) {
+    if (/^#/.test(l)) break;
+    if (!l.trim()) {
+      if (para.length) break;
+      continue;
+    }
+    para.push(l.trim());
+  }
+  const t = para.join(' ');
+  return t ? (t.length > 240 ? t.slice(0, 239) + '…' : t) : undefined;
 }

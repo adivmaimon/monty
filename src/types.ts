@@ -136,7 +136,10 @@ export interface Project {
   tasks: { done: number; total: number };
   /** what the progress bar should show, and where the numbers came from */
   progress: { done: number; total: number; basis: 'phases' | 'tasks' | 'status' };
+  /** Every markdown file in the change or feature folder (spec frameworks split one piece of work across several). */
+  docs?: string[];
   /** "Phase 3 of 5", "4/9 tasks": every surface shows this rather than working it out. */
+
   label?: string;
   updatedAt: string;
 }
