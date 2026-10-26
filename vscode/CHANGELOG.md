@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.4
+
+- Small fixes.
+
 ## 0.4.3
 
 - Small fixes.
