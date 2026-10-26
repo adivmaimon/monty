@@ -561,17 +561,26 @@
     // Skills, commands, agents and Cursor rules open with YAML frontmatter: its name is the
     // title, its description the line under it, any other keys are chips.
     const { data: fm, body: text } = frontmatter(docMd);
+    // Only short "**Key**: value" pairs, colon required: "**Medium - accuracy...**" is a sentence,
+    // and its prose must stay in the body. "**Date**: x | **Status**: y" is several chips.
+    const META = /^\*\*([^*]{1,24}?):?\*\*\s*:?\s*(.{1,120})$/;
     const body = text.split('\n').filter((l) => {
-      if (/^##\s/.test(l)) seenH2 = true;
-      const m = !seenH2 && /^\*\*([^*]+)\*\*:?\s*:?\s*(.+)$/.exec(l.trim());
-      if (m) { meta.push([m[1].replace(/:$/, ''), m[2].replace(/\*\*/g, '')]); return false; }
-      return true;
+      if (/^#{2,3}\s/.test(l)) seenH2 = true;
+      if (seenH2) return true;
+      const parts = l.trim().split(/\s+\|\s+/);
+      const pairs = parts.map((x) => /^\*\*[^*]+(:\*\*|\*\*\s*:)/.test(x) && META.exec(x)).filter(Boolean);
+      if (!pairs.length || pairs.length !== parts.length) return true;
+      for (const m of pairs) meta.push([m[1].replace(/:$/, ''), m[2].replace(/\*\*/g, '')]);
+      return false;
     }).join('\n');
     const repoPath = p ? p.repoPath : docFile.replace(/\/\.claude\/.*$|\/openspec\/.*$|\/specs\/.*$|\/\.kiro\/.*$/, '');
     const refs = new Set();
     const md = render(body, { repoPath, refs, docDir: docFile.replace(/\/[^/]*$/, '') });
-    // The goal is already in the header.
-    if (p && p.goal) md.sections = md.sections.filter((s) => !/^goal$/i.test(s.title.trim()));
+    // The goal is already in the header, unless the header only has its start: then the
+    // section stays, so the rest can be read.
+    const goalSec = md.sections.find((s) => /^goal$/i.test(s.title.trim()));
+    const goalWhole = goalSec && p && p.goal && !p.goal.endsWith('…') && (goalSec.html.match(/<(p|ul|ol|table|pre)\b/g) || []).length <= 1;
+    if (goalWhole) md.sections = md.sections.filter((s) => s !== goalSec);
     const goal = (p && p.goal) || fm.description || '';
     for (const [k, v] of Object.entries(fm)) if (k !== 'name' && k !== 'description' && k !== 'title' && v) meta.push([k, v]);
     // Progress is said once: the phase list when there is one (current phase ringed),
@@ -602,7 +611,7 @@
       ${p ? `<div class="eyebrow">${p.source === 'claude-projects' ? 'Plan' : esc(p.source)}</div>` : docKind(docFile) ? `<div class="eyebrow">${docKind(docFile)}</div>` : ''}
       <h1>${esc(title)}</h1>
       ${statusNote ? `<p class="statusnote">${mdInline(statusNote, { repoPath })}</p>` : ''}
-      ${goal ? `<p class="goal clamp3 ${xp('goal')}">${esc(goal)}</p>` : ''}
+      ${goal ? `<p class="goal clamp3 ${xp('goal')}">${mdInline(goal, { repoPath })}</p>` : ''}
       ${chips.length ? `<div class="chips">${chips.map(([k, v]) => `<span>${esc(k)}: ${esc(v.replace(/`/g, ''))}</span>`).join('')}</div>` : ''}
     </section>`;
     const progressCard = phases || tasks ? `<div class="side lead"><h2>${phases ? 'Phases' : 'Tasks'}</h2>${phases}${tasks}</div>` : '';

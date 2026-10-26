@@ -128,3 +128,10 @@ test('"Phase 2 done; Phase 1 waits for the owner" leaves Phase 1 open', () => {
   assert.deepEqual(p.phases.map((ph) => ph.done), [false, true, false]);
   assert.equal(p.label, 'Phase 1 of 3');
 });
+
+test('phase titles: "**Phase 1.** text", a bare first mention, and "DONE, commit x" trimmed; cancelled plans say so', () => {
+  const phases = findPhases(['**Phase 1.** the stack fills. DONE, commit adb03d', '**Phase 2**', 'later:', '**Phase 2**: Extend the alerts'], false);
+  assert.deepEqual(phases.map((p) => p.title), ['the stack fills', 'Extend the alerts']);
+  const p = parseClaudeProject('# X\n\n## Phase 1 - A\n\n## Phase 2 - B\n', { ...where, bucket: 'cancelled' });
+  assert.equal(p.label, 'cancelled');
+});

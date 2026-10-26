@@ -156,7 +156,7 @@ export function resolveStatus(bucket: ProjectStatus, statusText?: string): Proje
 const PHASE_HEADING = /^#{2,5}\s*(?:✅\s*)?Phase\s+(\d+)\b\s*[-—–:.]?\s*(.*)$/i;
 // "- **Phase 2 — the replace engine — DONE.**" - phases written up as bold bullets, or as
 // bold paragraphs with the title after the bold: "**Phase 1** — the refund flow."
-const PHASE_BULLET = /^(?:[-*]\s+)?\*\*(?:✅\s*)?Phase\s+(\d+)\b\s*[-—–:.]?\s*([^*]*)\*\*(?:\s*[-—–:.]\s*(.*))?/i;
+const PHASE_BULLET = /^(?:[-*]\s+)?\*\*(?:✅\s*)?Phase\s+(\d+)\b\s*[-—–:.]?\s*([^*]*)\*\*(?:\s*[-—–:.]?\s*(.*))?/i;
 
 export function findPhases(lines: string[], allDone: boolean, statusText?: string): Phase[] {
   const phases = new Map<number, Phase>();
@@ -164,11 +164,14 @@ export function findPhases(lines: string[], allDone: boolean, statusText?: strin
     const m = PHASE_HEADING.exec(l.trim()) ?? PHASE_BULLET.exec(l.trim());
     if (!m) continue;
     const n = Number(m[1]);
-    if (phases.has(n)) continue;
+    // First mention wins, unless it was a bare "**Phase 1**" and a later one has the title.
+    if (phases.has(n) && phases.get(n)?.title) continue;
     // The title after the bold runs on as prose; its first clause is the name.
     const after = (m[3] ?? '').split(/(?<=\.)\s|[.;:](?:\s|$)/)[0] ?? '';
     const rawTitle = (m[2] || after).replace(/[*_`]/g, '').trim().slice(0, 90);
-    phases.set(n, { n, title: rawTitle.replace(/\s*[-—–]\s*(DONE|COMPLETE[D]?)\b.*$/i, '').trim(), done: false });
+    // "the split. DONE, commit adb03d": the marker and what follows it are not the title.
+    const title = rawTitle.replace(/\s*[-—–.,(]*\s*\b(DONE|COMPLETED?|SHIPPED)\b.*$/, '').replace(/\s*[-—–]\s*(done|complete[d]?)\b.*$/i, '').replace(/[\s:;,(+–—-]+$/, '').trim();
+    phases.set(n, { n, title, done: false });
   }
   if (phases.size === 0) return [];
   const body = lines.join('\n');
@@ -251,13 +254,15 @@ function progressOf(status: ProjectStatus, phases: Phase[], tasks: { done: numbe
 /** "Phase 3 of 5": the first phase not done, by its own number, since plans don't always go in order. */
 export function progressLabel(status: ProjectStatus, phases: Phase[], progress: Project['progress']): string {
   const { done, total, basis } = progress;
+  // A cancelled or parked plan is not on any phase: "Phase 1 of 3" read as work under way.
+  if (status === 'cancelled' || status === 'parked') return status;
   if (basis === 'phases') {
     if (status === 'completed') return `${total} phases`;
     const next = phases.find((p) => !p.done);
     return next ? `Phase ${next.n} of ${total}` : `All ${total} phases done`;
   }
   if (basis === 'tasks') return `${done}/${total} tasks`;
-  return status === 'cancelled' ? 'cancelled' : '';
+  return '';
 }
 
 function prettyName(slug: string): string {

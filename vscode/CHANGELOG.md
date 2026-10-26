@@ -10,6 +10,7 @@
 - Plans: the Status sentence shows under the title; "Phase 2 done" in a Status line and "(done)" on a heading count; phases written as bold paragraphs are found; "Phase N of M" names the first phase not done.
 - Plan view: markdown in section headings renders, table cells keep pipes inside code, code blocks under list items stay code, relative links open the linked doc, `__bold__` works.
 - The menu bar dropdown says when macOS is blocking Monty's notifications, with a link to System Settings.
+- Plan view: a long Goal stays readable in full and renders its markdown; plans written with `###` sections get collapsible sections; only short `**Key**: value` lines become chips; cancelled and parked plans say so instead of "Phase 1 of 3"; cleaner phase titles; `#L39` links open at the line; `~~strike~~`, `<br>` in tables and bold around italics render.
 - When nothing is at work, the menu bar says "your move" or "all done" instead of plan progress, and plans read "0 of 5 phases done" rather than "Phase 1 of 5".
 
 ## 0.4.0

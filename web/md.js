@@ -32,7 +32,8 @@
     const [file, frag] = u.split('#');
     if (!file) return `<a href="#${frag ?? ''}">${t}</a>`;
     const abs = resolve(dir, decodeURIComponent(file));
-    return /\.md$/i.test(abs) ? `<a href="#" data-doc="${abs}">${t}</a>` : `<a href="#" data-open="${abs}" data-line="">${t}</a>`;
+    const line = /^L(\d+)/.exec(frag || '')?.[1] ?? ''; // GitHub-style #L39
+    return /\.md$/i.test(abs) && !line ? `<a href="#" data-doc="${abs}">${t}</a>` : `<a href="#" data-open="${abs}" data-line="${line}">${t}</a>`;
   }
 
   function inline(text, ctx) {
@@ -44,8 +45,13 @@
     });
     s = esc(s)
       // One level of parentheses inside the URL: wikipedia.org/wiki/Foo_(bar).
-      .replace(/\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/g, (_, t, u) => link(t, u, ctx))
-      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      // Link text may hold brackets ([plant/[id].tsx:58]); one level of parentheses in the URL.
+      .replace(/\[((?:[^[\]]|\[[^\]]*\])+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/g, (_, t, u) => link(t, u, ctx))
+      // Bold may wrap an *italic* word.
+      .replace(/\*\*((?:[^*]|\*[^*]+\*)+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/~~([^~]+)~~/g, '<del>$1</del>')
+      // Plans put <br> in table cells for line breaks; it is the only tag let through.
+      .replace(/&lt;br\s*\/?&gt;/gi, '<br>')
       .replace(/(^|[\s(])__([^_]+)__(?=[\s.,;:)]|$)/g, '$1<strong>$2</strong>')
       .replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>')
       .replace(/(^|[\s(])_([^_\s][^_]*)_(?=[\s.,;:)]|$)/g, '$1<em>$2</em>');
@@ -183,11 +189,13 @@
       blocks.push({ html: `<p>${inline(para.join(' '), ctx)}</p>` });
     }
     // Group by h2 into collapsible sections; everything before the first h2 is the preamble.
+    // Plans written with ### and no ## group by h3 instead, or they would have no sections at all.
     const out = { title: '', preamble: '', sections: [] };
+    const top = blocks.some((b) => b.level === 2) ? 2 : blocks.some((b) => b.level === 3) ? 3 : 2;
     let cur = null;
     for (const b of blocks) {
       if (b.level === 1 && !out.title) { out.title = b.title; continue; }
-      if (b.level === 2) { cur = { title: b.title, html: '' }; out.sections.push(cur); continue; }
+      if (b.level === top) { cur = { title: b.title, html: '' }; out.sections.push(cur); continue; }
       if (cur) cur.html += b.html; else out.preamble += b.html;
     }
     return out;

@@ -65,3 +65,13 @@ test('a rule under a paragraph ends it, and an unindented wrapped line stays in 
   assert.doesNotMatch(render('Text\n---\nMore'), /---/);
   assert.match(render('- a long item\nthat wraps\n\nAfter'), /<li>a long item that wraps<\/li>/);
 });
+
+test('strike, <br> in cells, bold around italics, bracketed link text, #L anchors, ### plans get sections', () => {
+  const html = render('| a |\n|---|\n| x<br>y |\n\n~~old~~ **bold *it* more** [p/[id].tsx](p/[id].tsx#L58)');
+  assert.match(html, /x<br>y/);
+  assert.match(html, /<del>old<\/del>/);
+  assert.match(html, /<strong>bold <em>it<\/em> more<\/strong>/);
+  const out = ctx.window.MontyMD.render('[p/[id].tsx](p/x.tsx#L58)\n\n### One\n\na\n\n### Two\n\nb', { docDir: '/r' });
+  assert.match(out.preamble, /data-open="\/r\/p\/x.tsx" data-line="58"/);
+  assert.equal(out.sections.map((s: { title: string }) => s.title).join(','), 'One,Two');
+});
