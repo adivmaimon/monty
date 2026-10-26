@@ -26,6 +26,7 @@ struct Session: Decodable, Identifiable {
     var lastTest: TestRun?
     var throughput: Throughput?
     var agent: String?
+    var lastTurn: Turn?
 
     struct Todo: Decodable { var text: String; var status: String }
     struct Count: Decodable { var done: Int; var total: Int }
@@ -34,6 +35,7 @@ struct Session: Decodable, Identifiable {
     struct Context: Decodable { var pct: Int }
     struct TestRun: Decodable { var ok: Bool; var summary: String; var time: String }
     struct Throughput: Decodable { var inPerMin: Int; var outPerMin: Int; var level: Double }
+    struct Turn: Decodable { var ms: Double; var endedAt: String }
 
     /// The task list when the session has one, else its repo's plan (current Claude Code has no todo tools).
     var shownProgress: (done: Int, total: Int, label: String)? {

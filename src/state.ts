@@ -214,7 +214,9 @@ export function withPlan(s: Session, projects: Project[]): Session {
   const { done, total } = pick.progress;
   const basis = pick.progress.basis as SessionPlan['basis'];
   // Every phase marked done but the plan not yet moved to completed/: say so, not "Phase 7 of 7".
-  const label = basis === 'phases' ? (done >= total ? `All ${total} phases done` : `Phase ${done + 1} of ${total}`) : `${done}/${total} tasks`;
+  // "Phase 2 of 5" says a phase is under way, so only while the session is; otherwise a count.
+  const busy = s.state === 'working' || s.state === 'needs_input';
+  const label = basis === 'phases' ? (done >= total ? `All ${total} phases done` : busy ? `Phase ${done + 1} of ${total}` : `${done} of ${total} phases done`) : `${done}/${total} tasks`;
   return { ...s, plan: { name: pick.name, file: pick.file, done, total, basis, label, match } };
 }
 

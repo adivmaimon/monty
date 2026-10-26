@@ -99,6 +99,9 @@ export class SessionModel {
   private prompts = 0;
   private needsInput?: string;
   private lastStop: string | null = null;
+  /** When the turn in flight began (0 between turns), and how the last finished one went. */
+  private turnStartMs = 0;
+  private lastTurn?: { ms: number; endedAt: string };
   private pending = new Map<string, Pending>();
   private sidechainPending = new Set<string>();
   private activity: Activity[] = [];
@@ -187,7 +190,12 @@ export class SessionModel {
     this.needsInput = undefined;
     // A finished turn has nothing in flight. Interrupted or queued-over tool calls
     // sometimes never get a result; without this they look stuck forever.
-    if (reason === 'end_turn') this.pending.clear();
+    if (reason === 'end_turn') {
+      this.pending.clear();
+      // Streaming repeats end_turn on every block of the last reply; the first one ends the turn.
+      if (this.turnStartMs && this.lastEventAt) this.lastTurn = { ms: this.lastEventMs - this.turnStartMs, endedAt: this.lastEventAt };
+      this.turnStartMs = 0;
+    }
   }
 
   /** The person sent a new prompt: it answers anything the agent was waiting on. */
@@ -195,16 +203,22 @@ export class SessionModel {
     this.needsInput = undefined;
     this.pending.clear();
     this.lastStop = null;
+    this.turnStartMs = this.lastEventMs;
   }
 
   /** The person interrupted (Esc): the turn is over. */
   interrupt(): void {
     this.pending.clear();
     this.lastStop = 'interrupted';
+    // You stopped it, so you are watching: no "finished" for this one.
+    this.turnStartMs = 0;
+    this.lastTurn = undefined;
   }
 
   /** `label` replaces the described activity line, for tools whose own message says it better. */
   toolStart(id: string, name: string, input: Json, at: number, time: string, label?: string): void {
+    // Adapters that never report the prompt still get a turn: it began with its first tool call.
+    if (!this.turnStartMs) this.turnStartMs = at;
     const described = describeTool(name, input, this.cwd, time);
     const act = described && label ? { ...described, text: label } : described;
     const p: Pending = { name, at, testCommand: name === 'Bash' && isTestCommand(input.command), activity: act };
@@ -374,6 +388,7 @@ export class SessionModel {
       inUse: this.inUse,
       subagentsRunning: Math.max(agents, this.sidechainPending.size > 0 ? 1 : 0),
       throughput: this.throughput(nowMs),
+      lastTurn: state === 'your_turn' || state === 'done' ? this.lastTurn : undefined,
     };
   }
 

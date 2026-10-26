@@ -84,15 +84,25 @@ final class Store: ObservableObject {
     }
 }
 
-/// One notification per state change per session: needs you, done, tests failing.
+/// One notification per state change per session: needs you, finished, tests failing.
 /// The first poll only records where things stand, so launching the app is silent.
 @MainActor
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     private var last: [String: String] = [:]
     private var seeded = false
     private var asked = false
+    // A turn this long means you have probably looked away. Shorter ones are replies you
+    // watched land; telling you about those as well would teach you to ignore the banner.
+    private let finishedAfterMs = 30_000.0
 
     func update(_ sessions: [Session], enabled: Bool) {
+        // Ask up front: asked on the first send, that first banner went out before the answer and was lost.
+        if enabled && !asked {
+            asked = true
+            let c = UNUserNotificationCenter.current()
+            c.delegate = self
+            c.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        }
         for s in sessions {
             let key = eventKey(s)
             let before = last[s.id]
@@ -108,7 +118,10 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     private func eventKey(_ s: Session) -> String? {
         switch s.state {
         case "needs_input": return "needs_input"
-        case "done": return "done"
+        // Most sessions have no task list, so "done" is rare: a long turn ending is the signal.
+        case "done", "your_turn":
+            if let t = s.lastTurn, t.ms >= finishedAfterMs { return "finished@\(t.endedAt)" }
+            return s.state == "done" ? "done" : nil
         default:
             if let t = s.lastTest, !t.ok, s.state == "working" { return "failing@\(t.time)" }
             return nil
@@ -117,19 +130,15 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
 
     private func send(_ s: Session, kind: String) {
         let c = UNUserNotificationCenter.current()
-        if !asked {
-            asked = true
-            c.delegate = self
-            c.requestAuthorization(options: [.alert, .sound]) { _, _ in }
-        }
         let n = UNMutableNotificationContent()
         if kind == "needs_input" {
             n.title = "\(s.repo) requires your attention"
             n.body = s.stateReason
             n.sound = .default
-        } else if kind == "done" {
-            n.title = "\(s.repo): all done"
+        } else if kind == "done" || kind.hasPrefix("finished") {
+            n.title = s.state == "done" ? "\(s.repo): all done" : "\(s.repo): your move"
             n.body = s.title
+            n.sound = .default
         } else {
             n.title = "\(s.repo): the tests have taken a turn"
             n.body = s.lastTest?.summary ?? "Tests failing"

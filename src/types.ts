@@ -73,6 +73,8 @@ export interface Session {
   /** Markdown files the session went near (read, wrote, named in a command), absolute, most recent first. */
   recentDocs?: string[];
   lastTest?: { ok: boolean; summary: string; time: string };
+  /** The turn that just ended with a reply, while the session waits on you: how long it ran, when it ended. */
+  lastTurn?: { ms: number; endedAt: string };
   /** The most recent edit that succeeded, for VS Code's follow mode. */
   lastEdit?: LastEdit;
   /** The skill or slash command most recently invoked: a Skill tool call, or a <command-name> line. */

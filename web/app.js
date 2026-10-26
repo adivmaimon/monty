@@ -71,6 +71,8 @@
 
   // A session's progress: its own todo list, else its repo's active plan (current
   // Claude Code has no todo tools, so the plan is usually all there is).
+  // Only a session at work has a current step to highlight.
+  const busy = (s) => s.state === 'working' || s.state === 'needs_input';
   function progOf(s) {
     const { done, total } = s.progress;
     if (total) return { done, total, pct: Math.round((done / total) * 100), label: `${done} of ${total} tasks` };
@@ -84,7 +86,7 @@
     const label = g.plan
       ? `<a href="#" class="clamp1" data-doc="${esc(g.plan.file)}" title="${esc(g.plan.name)}">${esc(g.label)} · <span class="muted">${esc(g.plan.name)}</span></a>`
       : `<span>${esc(g.label)}</span>`;
-    return `<div class="prog">${label}</div>${segBar(g.done, g.total, s.state !== 'done')}`;
+    return `<div class="prog">${label}</div>${segBar(g.done, g.total, busy(s))}`;
   }
 
   // ---------- host bridge ----------
@@ -154,7 +156,7 @@
 
     $('sessionTabs').innerHTML = shown.length > 1 ? shown.map((s) => `
       <button class="tab" data-id="${esc(s.id)}" aria-current="${s.id === selected}" title="${esc(s.title)}">
-        ${progOf(s) ? segBar(progOf(s).done, progOf(s).total, s.state !== 'done', 'mini') : ''}
+        ${progOf(s) ? segBar(progOf(s).done, progOf(s).total, busy(s), 'mini') : ''}
         <span class="clamp1" style="max-width:220px">${esc(scope ? s.title : s.repo)}</span>
         <span class="tag st-${s.state}">${STATE_LABEL[s.state]}</span>${agentTag(s)}
       </button>`).join('') : '';
@@ -213,7 +215,7 @@
     $('dock').innerHTML = `<div class="dock-in">
       <span class="tag st-${s.state}">${STATE_LABEL[s.state]}</span>${agentTag(s)}
       <span class="dock-title clamp1" title="${esc(s.title)}">${esc(s.title)}</span>
-      ${g ? `<span class="dock-prog"><span class="muted clamp1">${esc(g.label)}</span>${segBar(g.done, g.total, s.state !== 'done', 'dockbar')}</span>` : ''}
+      ${g ? `<span class="dock-prog"><span class="muted clamp1">${esc(g.label)}</span>${segBar(g.done, g.total, busy(s), 'dockbar')}</span>` : ''}
       <span class="dock-ctx"><span class="muted">Context ${s.context.pct}%</span><span class="bar thin ${ctxClass(s.context.pct)}"><span style="width:${s.context.pct}%"></span></span></span>
       ${speedo(s.throughput, false, 'dock' + s.id)}
     </div>`;

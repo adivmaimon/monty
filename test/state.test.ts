@@ -61,6 +61,14 @@ test('menu bar shows plan progress in text and ring, but needs-you wins the text
   assert.equal(ask.pct, 0.25);
 });
 
+test('nothing at work: the menu bar says so, and the plan reads as a count, not a phase under way', () => {
+  const s = withPlan({ ...sess(), state: 'your_turn' }, [plan('/P/Monty/a.md', 0, 5)]);
+  assert.equal(s.plan?.label, '0 of 5 phases done');
+  const bar = summarise({ generatedAt: '', roots: [], projects: [], sessions: [s] });
+  assert.equal(bar.text, 'your move');
+  assert.equal(bar.pct, 0);
+});
+
 test('a plan with every phase done says so instead of "Phase N of N"', () => {
   const s = withPlan(sess(), [plan('/P/Monty/a.md', 4, 4)]);
   assert.equal(s.plan?.label, 'All 4 phases done');
@@ -171,6 +179,12 @@ test('SessionModel from events alone: a tool call, a test run, tokens, end of tu
   assert.equal(s.lastTest?.ok, true);
   assert.equal(s.lastEdit?.file, 'src/a.ts');
   assert.equal(s.context.tokens, 40000);
+  assert.deepEqual(s.lastTurn, { ms: 4000, endedAt: '2026-10-23T10:00:04Z' }, 'the turn ran from its first tool call to end_turn');
+  m.seen('2026-10-23T10:01:00Z');
+  m.promptSent();
+  assert.equal(m.snapshot(Date.parse('2026-10-23T10:01:01Z')).lastTurn, undefined, 'only while waiting on you');
+  m.interrupt();
+  assert.equal(m.snapshot(Date.parse('2026-10-23T10:01:02Z')).lastTurn, undefined, 'you stopped it, so no "finished"');
 });
 
 test('the headline follows the latest prompt that says something, not the first one', () => {
