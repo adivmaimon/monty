@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.3
+
+- Small fixes.
+
 ## 0.4.2
 
 - The menu bar app notifies you when Claude finishes a turn that ran 30 seconds or more, not only when a task list is complete (most sessions have none).
