@@ -40,8 +40,45 @@ if (write === '--write') {
   const log = path.join(root, 'vscode', 'CHANGELOG.md');
   let text = fs.readFileSync(log, 'utf8');
   if (/^## Unreleased$/m.test(text)) text = text.replace(/^## Unreleased$/m, `## ${next}`);
-  // No notes written: still give the release its heading, and say there is nothing to add.
-  else if (!new RegExp(`^## ${next.replace(/\./g, '\\.')}$`, 'm').test(text)) text = text.replace(/^# Changelog\n/, `# Changelog\n\n## ${next}\n\n- Small fixes.\n`);
+  else if (!new RegExp(`^## ${next.replace(/\./g, '\\.')}$`, 'm').test(text)) {
+    // No Unreleased heading. Lines added since the last release usually went under an
+    // older version's heading (the top one has no Unreleased above it after a release),
+    // so move those here. Failing that, the commit subjects are better than nothing.
+    const notes = addedLines(text);
+    for (const line of notes) text = text.replace(`${line}\n`, '');
+    if (!notes.length) notes.push(...commitNotes());
+    if (!notes.length) notes.push('- No user-facing changes.');
+    text = text.replace(/^# Changelog\n/, `# Changelog\n\n## ${next}\n\n${notes.join('\n')}\n`);
+  }
   fs.writeFileSync(log, text);
+}
+
+function addedLines(text) {
+  let before = '';
+  try {
+    before = execFileSync('git', ['show', `${tag(last)}:vscode/CHANGELOG.md`], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  } catch {
+    return [];
+  }
+  const old = new Set(before.split('\n'));
+  return text.split('\n').filter((l) => l.startsWith('- ') && !old.has(l));
+}
+
+function commitNotes() {
+  let out = '';
+  try {
+    out = execFileSync('git', ['log', '--no-merges', '--format=%s', `${tag(last)}..HEAD`], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  } catch {
+    return [];
+  }
+  return out
+    .split('\n')
+    .filter((s) => s && !/^Monty \d/.test(s) && !/^(chore|docs|test|ci|refactor)\b/.test(s))
+    .map((s) => s.replace(/^\w+(\([^)]*\))?!?:\s*/, ''))
+    .map((s) => `- ${s[0].toUpperCase()}${s.slice(1)}.`);
+}
+
+function tag(v) {
+  return `v${v.replace(/^v/, '')}`;
 }
 console.log(next);

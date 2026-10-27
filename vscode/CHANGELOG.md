@@ -2,15 +2,25 @@
 
 ## 0.5.0
 
-- Small fixes.
+- "Open in VS Code" from the menu bar brings up the window that already has the repo open instead of opening a new one.
+- Notifications play Monty's own short ping.
+- Sessions a program started (Claude Code SDK or `claude -p`, such as a benchmark spawning dozens of runs) are no longer listed, never notify, and never guess at permission prompts. One line says how many are at work.
 
 ## 0.4.4
 
-- Small fixes.
+- OpenSpec: task sections (`## 1. Storage`) show as phases, a change whose tasks are all ticked says "not archived yet", and a generic `# Proposal` heading no longer becomes the name.
+- Kiro and cc-sdd: specs are named after their folder instead of "Requirements Document", top-level tasks show as phases without double-counting their sub-tasks, and `spec.json` gives the stage and what awaits approval.
+- Spec Kit: the spec's Status line and original request show in the plan view.
+- Opening any file of an OpenSpec change or a Kiro / Spec Kit feature shows its progress, with links to the other files.
+- Double-backtick code spans render.
 
 ## 0.4.3
 
-- Small fixes.
+- Background waits only count jobs the turn itself started, end at the job's own deadline (a monitor's expiry), and ignore dev servers, so a finished turn no longer reads "working" for an hour.
+- No more stale "your move" banners mid-turn: a long silence before Claude's reply stays "working".
+- A session closed mid-tool-call goes idle instead of "at it for 169 min"; a finished turn stays "your move" for two hours instead of vanishing after 15 minutes.
+- The menu bar icon turns while a session works with no plan progress to show, so working and waiting no longer look the same.
+- The menu bar app and the core survive the Mac sleeping instead of quitting on wake.
 
 ## 0.4.2
 
@@ -22,19 +32,6 @@
 - Plans: the Status sentence shows under the title; "Phase 2 done" in a Status line and "(done)" on a heading count; phases written as bold paragraphs are found; "Phase N of M" names the first phase not done.
 - Plan view: markdown in section headings renders, table cells keep pipes inside code, code blocks under list items stay code, relative links open the linked doc, `__bold__` works.
 - The menu bar dropdown says when macOS is blocking Monty's notifications, with a link to System Settings.
-- Background waits only count jobs the turn itself started, end at the job's own deadline (a monitor's expiry), and ignore dev servers, so a finished turn no longer reads "working" for an hour.
-- No more stale "your move" banners mid-turn: a long silence before Claude's reply stays "working".
-- A session closed mid-tool-call goes idle instead of "at it for 169 min"; a finished turn stays "your move" for two hours instead of vanishing after 15 minutes.
-- The menu bar icon turns while a session works with no plan progress to show, so working and waiting no longer look the same.
-- The menu bar app and the core survive the Mac sleeping instead of quitting on wake.
-- OpenSpec: task sections (`## 1. Storage`) show as phases, a change whose tasks are all ticked says "not archived yet", and a generic `# Proposal` heading no longer becomes the name.
-- Kiro and cc-sdd: specs are named after their folder instead of "Requirements Document", top-level tasks show as phases without double-counting their sub-tasks, and `spec.json` gives the stage and what awaits approval.
-- Spec Kit: the spec's Status line and original request show in the plan view.
-- Opening any file of an OpenSpec change or a Kiro / Spec Kit feature shows its progress, with links to the other files.
-- Double-backtick code spans render.
-- "Open in VS Code" from the menu bar brings up the window that already has the repo open instead of opening a new one.
-- Notifications play Monty's own short ping.
-- Sessions a program started (Claude Code SDK or `claude -p`, such as a benchmark spawning dozens of runs) are no longer listed, never notify, and never guess at permission prompts. One line says how many are at work.
 - Plan view: a long Goal stays readable in full and renders its markdown; plans written with `###` sections get collapsible sections; only short `**Key**: value` lines become chips; cancelled and parked plans say so instead of "Phase 1 of 3"; cleaner phase titles; `#L39` links open at the line; `~~strike~~`, `<br>` in tables and bold around italics render.
 - When nothing is at work, the menu bar says "your move" or "all done" instead of plan progress, and plans read "0 of 5 phases done" rather than "Phase 1 of 5".
 
