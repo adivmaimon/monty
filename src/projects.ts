@@ -1,6 +1,8 @@
 // Finds and reads plan/spec documents across the user's project folders.
 //
 // Adapters, in order of how much the user relies on them:
+//   caddis           .caddis/projects/{active,completed}/*.md - Caddis
+//                    (github.com/adivmaimon/caddis), the same plan format below.
 //   claude-projects  .claude/projects/{active,completed,cancelled,parked}/*.md - the
 //                    user's own /project, /execute, /complete convention. Progress is
 //                    NOT checkboxes here (almost no file has any): it comes from the
@@ -80,8 +82,27 @@ function mtime(p: string): Date {
 
 // ---------- the user's own convention ----------
 
+// Caddis keeps the same plan format under .caddis/projects/. A repo mid-migration can have
+// both folders; a plan found in .caddis wins over the same file name left in .claude.
+const PLAN_DIRS: { dir: string[]; source: ProjectSource }[] = [
+  { dir: ['.caddis', 'projects'], source: 'caddis' },
+  { dir: ['.claude', 'projects'], source: 'claude-projects' },
+];
+
 function scanClaudeProjects(repoPath: string): Project[] {
-  const base = path.join(repoPath, '.claude', 'projects');
+  const out: Project[] = [];
+  const seen = new Set<string>();
+  for (const { dir, source } of PLAN_DIRS) {
+    for (const p of scanPlanDir(repoPath, path.join(repoPath, ...dir), source)) {
+      if (seen.has(p.id)) continue;
+      seen.add(p.id);
+      out.push(p);
+    }
+  }
+  return out;
+}
+
+function scanPlanDir(repoPath: string, base: string, source: ProjectSource): Project[] {
   const repo = path.basename(repoPath);
   const out: Project[] = [];
   for (const bucketDir of readDir(base)) {
@@ -98,7 +119,7 @@ function scanClaudeProjects(repoPath: string): Project[] {
     for (const file of files) {
       const text = readText(file);
       if (text === null) continue;
-      out.push(parseClaudeProject(text, { file, repo, repoPath, bucket }));
+      out.push(parseClaudeProject(text, { file, repo, repoPath, bucket, source }));
     }
   }
   return out;
@@ -106,7 +127,7 @@ function scanClaudeProjects(repoPath: string): Project[] {
 
 export function parseClaudeProject(
   text: string,
-  where: { file: string; repo: string; repoPath: string; bucket: ProjectStatus },
+  where: { file: string; repo: string; repoPath: string; bucket: ProjectStatus; source?: ProjectSource },
 ): Project {
   const lines = text.split('\n').map((l) => l.replace(/^\s*>\s?/, ''));
   const statusText = findStatusLine(lines);
@@ -118,7 +139,7 @@ export function parseClaudeProject(
     id: `${where.repo}:${path.basename(where.file, '.md')}`,
     repo: where.repo,
     repoPath: where.repoPath,
-    source: 'claude-projects',
+    source: where.source ?? 'claude-projects',
     name: findTitle(lines) ?? prettyName(path.basename(where.file, '.md')),
     file: where.file,
     status,

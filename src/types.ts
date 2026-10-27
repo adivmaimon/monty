@@ -116,7 +116,7 @@ export interface SessionPlan {
 }
 
 export type ProjectStatus = 'active' | 'pending' | 'parked' | 'completed' | 'cancelled';
-export type ProjectSource = 'claude-projects' | 'openspec' | 'spec-kit' | 'kiro';
+export type ProjectSource = 'caddis' | 'claude-projects' | 'openspec' | 'spec-kit' | 'kiro';
 
 export interface Phase {
   n: number;

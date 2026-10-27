@@ -179,3 +179,26 @@ test('Spec Kit: "## Phase N:" groups are phases; spec.md gives the status and th
   assert.equal(p?.statusText, 'In Progress');
   assert.equal(p?.goal, 'Let people tag photos and filter an album by tag');
 });
+
+import * as nodeFs from 'node:fs';
+import * as nodeOs from 'node:os';
+
+test('Caddis plans in .caddis/projects are found, and win over a leftover copy in .claude/projects', () => {
+  const repo = nodeFs.mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'caddis-repo-'));
+  const write = (rel: string, text: string) => {
+    nodeFs.mkdirSync(nodePath.dirname(nodePath.join(repo, rel)), { recursive: true });
+    nodeFs.writeFileSync(nodePath.join(repo, rel), text);
+  };
+  write('.caddis/projects/active/project-engine.md', '# Engine\n\n**Status:** In progress\n\n### Phase 1 - Parser - DONE (2026-10-27)\n### Phase 2 - Runner\n');
+  write('.caddis/projects/completed/task-typo.md', '# Typo\n\n**Status:** Complete\n**Type:** Task\n');
+  write('.claude/projects/active/project-engine.md', '# Old engine\n\n**Status:** Pending\n');
+  write('.claude/projects/active/project-legacy.md', '# Legacy\n\n**Status:** Pending\n');
+  const ps = scanRepo(repo);
+  const byName = new Map(ps.map((p) => [p.name, p]));
+  assert.equal(ps.length, 3);
+  assert.equal(byName.get('Engine')?.source, 'caddis');
+  assert.deepEqual(byName.get('Engine')?.phases.map((p) => p.done), [true, false]);
+  assert.equal(byName.get('Typo')?.status, 'completed');
+  assert.equal(byName.get('Legacy')?.source, 'claude-projects');
+  assert.equal(byName.has('Old engine'), false);
+});
