@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1
+
+- Adding Caddis as an option.
+- Real release notes instead of "Small fixes".
+
 ## 0.5.0
 
 - "Open in VS Code" from the menu bar brings up the window that already has the repo open instead of opening a new one.
