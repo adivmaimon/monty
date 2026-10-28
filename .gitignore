@@ -10,4 +10,5 @@ vscode/core/
 # Private to the maintainer: plans, workflow skills and agent instructions.
 /.claude/
 /CLAUDE.md
+/.caddis/
 menubar/MontyApp/Monty.zip
