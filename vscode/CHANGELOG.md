@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Footprint: a plan or spec's readable view shows where its work lands in the repo. Files it names that changed, files it names still untouched, and files changed outside it, drawn as area boxes; click a file to see its phase and open it. Changes come from git since the spec was created and from live sessions working on it.
+
 ## 0.5.1
 
 - Adding Caddis as an option.
