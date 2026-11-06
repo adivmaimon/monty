@@ -6,6 +6,7 @@
 //   GET /api/swiftbar     ready-made SwiftBar plugin output
 //   GET /api/icon.png     the monocle (?pct=0.5&badge=attention), for testing
 //   GET /api/doc?file=    raw markdown, only for files under a project root
+//   GET /api/footprint?file=   a known spec's footprint: files it names vs files changed (src/footprint.ts)
 //   POST /api/intent?repo=&doc=   ask the VS Code window for that repo to show Monty (or a plan)
 //   GET  /api/intent?repo=        that window collects it (each intent is delivered once)
 
@@ -18,6 +19,7 @@ import type { MontyState } from './types.js';
 import { isUnderKnown, scopeState, type MontyStore } from './state.js';
 import { summarise, swiftbarText } from './bar.js';
 import { renderMonocle, type Badge } from './icon.js';
+import { footprint, projectForDoc } from './footprint.js';
 
 const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'web');
 
@@ -122,6 +124,23 @@ function route(url: URL, req: http.IncomingMessage, res: http.ServerResponse, cf
       }
       res.writeHead(200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'no-store' });
       return void res.end(fs.readFileSync(file, 'utf8'));
+    }
+    case '/api/footprint': {
+      // Only a known project's doc: the route cannot be pointed at an arbitrary folder.
+      const st = store.state();
+      const p = projectForDoc(st.projects, url.searchParams.get('file') ?? '');
+      if (!p) {
+        res.writeHead(404, { 'content-type': 'text/plain' });
+        return void res.end('Not a known plan or spec');
+      }
+      footprint(p, st.sessions).then(
+        (f) => json(res, f),
+        (err) => {
+          res.writeHead(500, { 'content-type': 'text/plain' });
+          res.end(String(err));
+        },
+      );
+      return;
     }
     default:
       return serveStatic(url.pathname, res);
