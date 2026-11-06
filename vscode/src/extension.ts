@@ -320,6 +320,8 @@ function html(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
     .replace('href="style.css"', `href="${uri('style.css')}"`)
     .replace('<script src="md.js"></script>', `<script nonce="${nonce}" src="${uri('md.js')}"></script>`)
     .replace('<script src="app.js"></script>', `<script nonce="${nonce}">window.MONTY = ${JSON.stringify({ ...config, nonce, mermaidSrc: uri('vendor/mermaid.min.js') }).replace(/</g, '\\u003c')};</script><script nonce="${nonce}" src="${uri('app.js')}"></script>`)
+    // Any other panel script (reader-hover.js...) gets the nonce and a webview URI too.
+    .replace(/<script src="([\w.-]+\.js)"><\/script>/g, (_, f: string) => `<script nonce="${nonce}" src="${uri(f)}"></script>`)
     .replace(
       '<meta charset="utf-8">',
       `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} data:; font-src ${webview.cspSource};">`,
@@ -367,6 +369,19 @@ function wire(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
         }
       }
       post(webview, { type: 'doc', id: m.id, text });
+    }
+    if (m.type === 'getExcerpt' && typeof m.file === 'string') {
+      // Hover previews. The core decides what may be read (roots, symlinks, secrets), so
+      // those rules live in one place; the webview cannot fetch it itself (CSP).
+      const line = typeof m.line === 'number' && m.line > 0 ? `&line=${m.line}` : '';
+      let data: unknown = { status: 'refused', reason: 'Monty is not running', lines: [] };
+      try {
+        const res = await fetch(`http://127.0.0.1:${cfg().port}/api/excerpt?file=${encodeURIComponent(m.file)}${line}`, { signal: AbortSignal.timeout(1500) });
+        data = await res.json();
+      } catch {
+        /* keep the message */
+      }
+      post(webview, { type: 'excerpt', id: m.id, data });
     }
   });
 }

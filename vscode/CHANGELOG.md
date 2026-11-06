@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Hover a file reference in a plan to see the lines it points at, or a link to another plan to see its status, goal and progress. Works from the keyboard too.
+
 ## 0.5.1
 
 - Adding Caddis as an option.
