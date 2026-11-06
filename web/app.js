@@ -114,6 +114,8 @@
       vscode.postMessage({ type: 'getDoc', file, id });
     });
   }
+  // Shared with reader-hover.js: there is only one acquireVsCodeApi() handle per page.
+  window.MontyHost = { vscode, state: () => state, fetchDoc };
   // One click handler for every [data-open] link: files open in a new editor tab.
   document.addEventListener('click', (e) => {
     const a = e.target.closest('[data-open]');
