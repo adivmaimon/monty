@@ -1,0 +1,41 @@
+/* Typed blocks (web/blocks.js): bar charts and flows drawn from ```chart and ```flow
+   fences. Kept apart from style.css so the reader branches merge cleanly; colours come
+   from its tokens, so the VS Code theme overrides apply here too. */
+.tb{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:10px 0;display:flex;flex-direction:column;gap:12px}
+.tb figcaption{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tb-title{font-weight:650;font-size:14px}
+.tb-sub,.tb-note{font-size:12px;color:var(--muted)}
+
+/* chart: label | bar track | value, one grid so the threshold line can span every row */
+.tb-rows{display:grid;grid-template-columns:minmax(90px,max-content) minmax(120px,1fr) auto;column-gap:12px;row-gap:10px;align-items:center}
+.tb-label{grid-column:1;font-size:13px;min-width:0;overflow-wrap:anywhere}
+.tb-track{grid-column:2;display:flex;align-items:center;gap:8px;min-width:0}
+.tb-bar{height:14px;border-radius:3px;background:#5a45a0;flex:none;min-width:2px}
+.tb-val{grid-column:3;font-size:12.5px;text-align:right}
+.tb-tag{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.tb-win .tb-bar{background:var(--accent-strong)}
+.tb-win .tb-tag{color:var(--ok)}
+.tb-rej.tb-label{color:var(--muted);text-decoration:line-through}
+.tb-rej .tb-bar{background:var(--track)}
+.tb-rej .tb-tag,.tb-rej.tb-val{color:var(--muted)}
+.tb-th{grid-column:2;position:relative;align-self:stretch;margin:-4px 0;pointer-events:none}
+.tb-th i{position:absolute;top:0;bottom:0;width:0;border-left:1px dashed var(--muted)}
+
+/* flow: step, arrow, step, … columns; a branch starts in its from-step's column */
+.tb-scroll{overflow-x:auto}
+.tb-grid{display:grid;grid-auto-columns:auto;column-gap:8px;row-gap:10px;align-items:start;width:max-content}
+.tb-step{display:flex;flex-direction:column;gap:3px;min-width:90px;max-width:170px;grid-row:1}
+.tb-node{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-weight:600;font-size:13px;width:max-content;max-width:100%}
+.tb-detail{font-size:11.5px;color:var(--muted);padding-left:4px}
+.tb-from .tb-node{background:var(--accent-soft);border-color:var(--accent-strong)}
+.tb-gap{grid-row:1;color:var(--muted)}
+.tb svg{fill:none;stroke:currentColor;stroke-width:1.5;display:block}
+.tb-branch{display:flex;align-items:center;gap:8px;padding-left:16px;color:var(--muted)}
+.tb-if{font-size:12px}
+.tb-bad{color:var(--rose)}.tb-bad .tb-to{background:rgba(251,113,133,.12);border-color:var(--rose);color:var(--rose)}
+.tb-good{color:var(--ok)}.tb-good .tb-to{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.tb-branch .tb-if{color:var(--muted)}
+
+/* a block that would not draw: its reason, then the source as a normal code block */
+.tb-reason{font-size:12px;color:var(--muted);margin:10px 0 4px}
+.tb-failed pre{border-color:rgba(251,113,133,.4)}

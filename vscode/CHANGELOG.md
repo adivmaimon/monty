@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Specs can draw small charts and flows: write YAML in a `chart` or `flow` fenced block (GitHub shows it as plain YAML) and the readable view draws bars or steps. A block Monty can't read shows its source with one line saying why.
+
 ## 0.5.1
 
 - Adding Caddis as an option.

@@ -317,8 +317,10 @@ function html(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
   let page = fs.readFileSync(vscode.Uri.joinPath(webDir, 'index.html').fsPath, 'utf8');
   page = page
     .replace(/<link rel="icon"[^>]*>/, '')
-    .replace('href="style.css"', `href="${uri('style.css')}"`)
-    .replace('<script src="md.js"></script>', `<script nonce="${nonce}" src="${uri('md.js')}"></script>`)
+    // Every local stylesheet and script (style.css, blocks.js, md.js, …) by pattern, so a
+    // new web file loads here without another line; app.js keeps its config prelude below.
+    .replace(/href="([\w.-]+\.css)"/g, (_, f) => `href="${uri(f)}"`)
+    .replace(/<script src="(?!app\.js")([\w.-]+\.js)"><\/script>/g, (_, f) => `<script nonce="${nonce}" src="${uri(f)}"></script>`)
     .replace('<script src="app.js"></script>', `<script nonce="${nonce}">window.MONTY = ${JSON.stringify({ ...config, nonce, mermaidSrc: uri('vendor/mermaid.min.js') }).replace(/</g, '\\u003c')};</script><script nonce="${nonce}" src="${uri('app.js')}"></script>`)
     .replace(
       '<meta charset="utf-8">',
