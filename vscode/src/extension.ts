@@ -11,6 +11,7 @@ import { execFile, spawn } from 'node:child_process';
 import { changedLineRange, hunkRanges } from './diff';
 import { findApp, installMenuBarApp, offerMenuBarApp } from './install';
 import { ReadableByDefault } from './readable';
+import { fetchHistory } from './historyView';
 
 interface Session {
   id: string;
@@ -319,6 +320,7 @@ function html(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
     .replace(/<link rel="icon"[^>]*>/, '')
     .replace('href="style.css"', `href="${uri('style.css')}"`)
     .replace('<script src="md.js"></script>', `<script nonce="${nonce}" src="${uri('md.js')}"></script>`)
+    .replace('<script src="history.js"></script>', `<script nonce="${nonce}" src="${uri('history.js')}"></script>`)
     .replace('<script src="app.js"></script>', `<script nonce="${nonce}">window.MONTY = ${JSON.stringify({ ...config, nonce, mermaidSrc: uri('vendor/mermaid.min.js') }).replace(/</g, '\\u003c')};</script><script nonce="${nonce}" src="${uri('app.js')}"></script>`)
     .replace(
       '<meta charset="utf-8">',
@@ -349,6 +351,7 @@ function wire(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
     }
     if (m.type === 'openDoc' && typeof m.file === 'string') openReadable(extUri, m.file);
     if (m.type === 'openDetails') openDetails(extUri);
+    if (m.type === 'getHistory' && typeof m.repo === 'string') post(webview, { type: 'history', id: m.id, history: await fetchHistory(cfg().port, m.repo) });
     if (m.type === 'setFollow') setFollow(!!m.on);
     if (m.type === 'editAsText' && typeof m.file === 'string') {
       readable?.keepAsText(vscode.Uri.file(m.file));

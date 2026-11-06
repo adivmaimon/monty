@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Plans per file: the details view maps the repo's folders, each file shaded by how many plans changed it in the last 30 or 90 days or ever. Click a file for those plans, newest first. Plans are matched to commits by Caddis's `Caddis-Plan:` line, by commits that changed the plan itself, or, marked as a guess, by the dates in the plan and the files it names.
+
 ## 0.5.1
 
 - Adding Caddis as an option.

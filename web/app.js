@@ -521,6 +521,9 @@
       $('stats').innerHTML = '';
       renderLive();
       renderPlans();
+      // Plans per file (history.js): needs one repo, the scope or the one picked.
+      const picked = !scope && $('repoFilter').value && state.projects.find((p) => p.repo === $('repoFilter').value);
+      if (window.MontyHistory) window.MontyHistory.update($('history'), scope || (picked ? picked.repoPath : ''), { esc, vscode });
     }
     renderSetup();
     markFits();
@@ -778,6 +781,7 @@
       // The plan changed on disk or in an editor (Claude ticking a phase): re-render live.
       if (m.type === 'docText' && cfg.mode === 'doc') { docMd = m.text; renderDoc(); }
       if (m.type === 'follow') { follow = !!m.on; renderAll(); }
+      if (m.type === 'history' && window.MontyHistory) window.MontyHistory.onMessage(m);
       if (m.type === 'offline') $('detail').innerHTML = `<div class="empty">${esc(m.message)}</div>`;
     });
     vscode.postMessage({ type: 'ready' });
