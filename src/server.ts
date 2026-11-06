@@ -6,6 +6,8 @@
 //   GET /api/swiftbar     ready-made SwiftBar plugin output
 //   GET /api/icon.png     the monocle (?pct=0.5&badge=attention), for testing
 //   GET /api/doc?file=    raw markdown, only for files under a project root
+//   GET /api/reader?file= what the reader's Brief and Full modes add for a plan (src/reader.ts)
+//   POST /api/answer      answer or un-answer a plan's open question, on a click (src/answers.ts)
 //   POST /api/intent?repo=&doc=   ask the VS Code window for that repo to show Monty (or a plan)
 //   GET  /api/intent?repo=        that window collects it (each intent is delivered once)
 
@@ -18,6 +20,8 @@ import type { MontyState } from './types.js';
 import { isUnderKnown, scopeState, type MontyStore } from './state.js';
 import { summarise, swiftbarText } from './bar.js';
 import { renderMonocle, type Badge } from './icon.js';
+import { projectFor, readerData } from './reader.js';
+import { answerRoute } from './answers.js';
 
 const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'web');
 
@@ -123,6 +127,19 @@ function route(url: URL, req: http.IncomingMessage, res: http.ServerResponse, cf
       res.writeHead(200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'no-store' });
       return void res.end(fs.readFileSync(file, 'utf8'));
     }
+    case '/api/reader': {
+      const file = path.resolve(url.searchParams.get('file') ?? '');
+      const st = store.state();
+      const p = isUnderKnown(file, cfg.projectRoots, store.repos()) ? projectFor(st.projects, file) : undefined;
+      if (!p) return json(res, null);
+      return void readerData(p, st.sessions).then((d) => json(res, d), () => json(res, null));
+    }
+    case '/api/answer':
+      // The only write: a known plan's file under a project root, checked again in answers.ts.
+      return answerRoute(req, res, cfg.port, (file) => {
+        const f = path.resolve(file);
+        return isUnderKnown(f, cfg.projectRoots, store.repos()) && !!projectFor(store.state().projects, f);
+      });
     default:
       return serveStatic(url.pathname, res);
   }
