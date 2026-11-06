@@ -199,7 +199,12 @@
       } else {
         const off = 12 + (under++ % 3) * 8;
         const low = Math.max(a.y, b.y) + H + 12;
-        points = [[a.x + W / 2 + off, a.y + H], [a.x + W / 2 + off, low], [b.x + W / 2 - off, low], [b.x + W / 2 - off, b.y + H]];
+        if (a.lane === b.lane) {
+          // Same lane: run down the gap on the right, so the line never passes behind a
+          // card in between and seems to start from it.
+          const side = a.x + W + off;
+          points = [[a.x + W, a.y + H / 2], [side, a.y + H / 2], [side, b.y + H / 2], [b.x + W, b.y + H / 2]];
+        } else points = [[a.x + W / 2 + off, a.y + H], [a.x + W / 2 + off, low], [b.x + W / 2 - off, low], [b.x + W / 2 - off, b.y + H]];
       }
       edges.push({ from: d, to: c.id, cycle, back: !(a.lane < b.lane), points });
     }
