@@ -320,6 +320,8 @@ function html(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
     .replace('href="style.css"', `href="${uri('style.css')}"`)
     .replace('<script src="md.js"></script>', `<script nonce="${nonce}" src="${uri('md.js')}"></script>`)
     .replace('<script src="app.js"></script>', `<script nonce="${nonce}">window.MONTY = ${JSON.stringify({ ...config, nonce, mermaidSrc: uri('vendor/mermaid.min.js') }).replace(/</g, '\\u003c')};</script><script nonce="${nonce}" src="${uri('app.js')}"></script>`)
+    // Any other script the page loads (blast.js...): the CSP only runs scripts with the nonce.
+    .replace(/<script src="([\w.-]+\.js)"><\/script>/g, (_m, f: string) => `<script nonce="${nonce}" src="${uri(f)}"></script>`)
     .replace(
       '<meta charset="utf-8">',
       `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} data:; font-src ${webview.cspSource};">`,

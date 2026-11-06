@@ -622,6 +622,7 @@
       ${statusNote ? `<p class="statusnote">${mdInline(statusNote, { repoPath })}</p>` : ''}
       ${goal ? `<p class="goal clamp3 ${xp('goal')}">${mdInline(goal, { repoPath })}</p>` : ''}
       ${chips.length ? `<div class="chips">${chips.map(([k, v]) => `<span>${esc(k)}: ${esc(v.replace(/`/g, ''))}</span>`).join('')}</div>` : ''}
+      ${window.MontyBlast ? window.MontyBlast.button(p) : ''}
     </section>`;
     const progressCard = phases || tasks ? `<div class="side lead"><h2>${phases ? 'Phases' : 'Tasks'}</h2>${phases}${tasks}</div>` : '';
     $('docTop').innerHTML = statusCard;

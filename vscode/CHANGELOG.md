@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Blast radius: in a repo with a Caddis map, an open plan's header has a button showing what its changes reach: the files it edits that something imports, their importers with hubs marked, reach by area, and importers no test reaches. Repos without the map look as before.
+
 ## 0.5.1
 
 - Adding Caddis as an option.
