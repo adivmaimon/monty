@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Specs show what changed since you last read them: a bar beside each changed section, a dot in the section list, new text highlighted, old status and risk struck through, and "done just now" on phases finished since. Step through with previous and next; Mark seen clears them. The last-seen copy stays in Monty's own storage, never in your repo.
+
 ## 0.5.1
 
 - Adding Caddis as an option.

@@ -187,12 +187,14 @@
     }
     const sections = b.sections.map((s, j) => {
       const now = content(s.lines);
-      if (match[j] < 0) return { title: s.title, kind: 'added', added: now, removed: 0 };
+      if (match[j] < 0) return { title: s.title, kind: 'added', added: now, removed: 0, old: '' };
       const old = a.sections[match[j]];
       const d = lineDiff(content(old.lines), now);
-      if (renamed.has(j)) return { title: s.title, kind: 'renamed', from: old.title, added: d.added, removed: d.removed };
+      // `old`: the section's previous body, so the reader can tell which rendered blocks are new.
+      const was = old.lines.join('\n');
+      if (renamed.has(j)) return { title: s.title, kind: 'renamed', from: old.title, added: d.added, removed: d.removed, old: was };
       const kind = d.added.length || d.removed || plain(old.title) !== plain(s.title) ? 'edited' : 'same';
-      return { title: s.title, kind, added: d.added, removed: d.removed };
+      return { title: s.title, kind, added: d.added, removed: d.removed, old: was };
     });
     // Where each removed section stood: after the nearest earlier old section still here.
     const whereNow = new Map();
@@ -283,5 +285,183 @@
     if (post) window.addEventListener('message', (ev) => onMessage(ev.data));
   }
 
-  window.MontyChanges = { splitDoc, diffDoc, lineDiff, titleKey, init, store };
+  // ---------- reader marks ----------
+  // app.js rebuilds the article on every render (a live edit, a view toggle), so apply()
+  // runs after each one and draws the marks again from the same snapshot: marks stay, and
+  // new edits join them.
+
+  const docs = new Map(); // file -> { snap, loaded, opened: Set of section keys, cur }
+  let last = null;
+  const DOC_ERROR = /^(I couldn't find .*, I'm afraid\.|Could not open .*)$/;
+  const escH = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  /** Heading text as both markdown and the rendered summary read: links, marks and case gone. */
+  const norm = (t) => String(t).replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[`*~_]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const textOf = (el) => (el.textContent || '').replace(/\s+/g, ' ').trim();
+
+  /** Blocks whose own text can be compared: a list item without its sub-list, a table row, a paragraph. */
+  function leaves(root) {
+    return [...root.querySelectorAll('p, li, tr, h3, h4, h5, h6, pre')].map((el) => {
+      let text;
+      if (el.tagName === 'LI' && el.querySelector('ul, ol')) {
+        const c = el.cloneNode(true);
+        c.querySelectorAll('ul, ol').forEach((x) => x.remove());
+        text = textOf(c);
+      } else text = textOf(el);
+      return { el, text };
+    }).filter((x) => x.text);
+  }
+
+  function hideBar() {
+    const bar = document.getElementById('docChanges');
+    if (bar) { bar.hidden = true; bar.innerHTML = ''; }
+  }
+
+  /** Called by app.js after each render of the reader. Never throws: on trouble, no marks. */
+  function apply(opts) {
+    try {
+      if (typeof document === 'undefined' || !opts) return;
+      last = opts;
+      const { file, md, raw } = opts;
+      if (raw || !file) return hideBar();
+      let st = docs.get(file);
+      if (!st) {
+        st = { snap: undefined, loaded: false, opened: new Set(), cur: -1 };
+        docs.set(file, st);
+        store.get(file).then((text) => {
+          st.loaded = true;
+          if (text === null) {
+            // First open: remember it as seen, mark nothing. A fetch error is not the spec.
+            const now = last && last.file === file ? last.md : md;
+            if (typeof now === 'string' && !DOC_ERROR.test(now.trim())) { st.snap = now; store.set(file, now); }
+          } else st.snap = text;
+          if (last && last.file === file) apply(last);
+        });
+        return hideBar();
+      }
+      if (!st.loaded || typeof st.snap !== 'string' || DOC_ERROR.test(String(md).trim())) return hideBar();
+      const d = diffDoc(st.snap, md);
+      if (!d || !d.count) return hideBar();
+      draw(d, st, file, md);
+    } catch {
+      try { hideBar(); } catch { /* no reader on this page */ }
+    }
+  }
+
+  function draw(d, st, file, md) {
+    const doc = document.getElementById('doc');
+    const side = document.getElementById('docSide');
+    if (!doc) return;
+    clear(); // stepping redraws onto the same render
+    // Rendered sections in order, paired with the diff's by title (app.js may leave one out,
+    // the Goal when the header already shows it).
+    const els = [...doc.querySelectorAll('details.sec')];
+    const elFor = new Map();
+    let k = 0;
+    for (const el of els) {
+      const sum = el.querySelector('summary > span');
+      const t = norm(sum ? sum.textContent : '');
+      let j = k;
+      while (j < d.sections.length && norm(d.sections[j].title) !== t) j++;
+      if (j < d.sections.length) { elFor.set(j, el); k = j + 1; }
+    }
+    const inject = (html) => {
+      const box = document.createElement('div');
+      box.innerHTML = html;
+      return box.firstElementChild;
+    };
+    const hero = doc.querySelector('.hero');
+    if (hero && d.preamble.changed) { hero.classList.add('chg'); hero.dataset.chg = '1'; }
+    const level = (label, v) => `<div class="chg-inj chg-level" title="${escH(label)} changed since you last looked"><span class="chg-k">${escH(label)}</span><del>${escH(v.from)}</del><span aria-hidden="true">→</span><span class="chg-to">${escH(v.to)}</span></div>`;
+    if (hero && d.status) {
+      const h1 = hero.querySelector('h1');
+      if (h1) h1.after(inject(level('Status', d.status)));
+    }
+    const MD = window.MontyMD;
+    d.sections.forEach((s, j) => {
+      const el = elFor.get(j);
+      if (!el || s.kind === 'same') return;
+      el.classList.add('chg');
+      el.dataset.chg = '1';
+      const sum = el.querySelector('summary > span');
+      if (sum && s.kind === 'added') sum.after(inject('<span class="chg-inj chg-tag">new</span>'));
+      if (sum && s.kind === 'renamed') sum.after(inject(`<span class="chg-inj chg-tag">was <del>${escH(s.from)}</del></span>`));
+      const toc = side && side.querySelector(`a[data-sec="${el.dataset.i}"]`);
+      if (toc) toc.appendChild(inject('<span class="chg-inj chg-dot" title="Changed since you last looked"></span>'));
+      // Changed sections open the first time they show; after that the reader's own choice stands.
+      const key = titleKey(s.title);
+      if (!st.opened.has(key)) { st.opened.add(key); if (!el.open) el.open = true; }
+      const body = el.querySelector('.in');
+      if (body && /^risks?\b/.test(key) && d.risk) body.prepend(inject(level('Risk', d.risk)));
+      // New text: rendered blocks of this section that the old body did not have. A whole new
+      // section is marked by its bar alone; highlighting all of it says nothing more.
+      if (body && s.kind !== 'added' && MD && s.added.length) {
+        const tpl = document.createElement('template');
+        tpl.innerHTML = MD.render('## _\n' + s.old, {}).sections.map((x) => x.html).join('');
+        const before = new Map();
+        for (const { text } of leaves(tpl.content)) before.set(text, (before.get(text) || 0) + 1);
+        for (const { el: b, text } of leaves(body)) {
+          const n = before.get(text) || 0;
+          if (n) before.set(text, n - 1); else b.classList.add('chg-add');
+        }
+      }
+    });
+    if (d.risk && hero && !d.sections.some((s, j) => elFor.has(j) && /^risks?\b/.test(titleKey(s.title)) && s.kind !== 'same')) {
+      const h1 = hero.querySelector('h1');
+      if (h1) h1.after(inject(level('Risk', d.risk)));
+    }
+    for (const r of d.removed) {
+      const note = inject(`<div class="chg-inj chg-removed" data-chg="1">Removed since last look: <del>${escH(r.title)}</del></div>`);
+      const at = r.after >= 0 ? elFor.get(r.after) : null;
+      if (at) at.after(note);
+      else if (hero) hero.after(note);
+      else doc.prepend(note);
+    }
+    if (d.phasesDone.length) {
+      const done = new Set(d.phasesDone);
+      const label = () => inject('<span class="chg-inj chg-just" title="From phase markers: done since you last looked">done just now</span>');
+      const phaseN = (t) => { const m = /^\s*(?:✅\s*)?Phase\s+(\d+)\b/i.exec(t); return m ? Number(m[1]) : 0; };
+      if (side) side.querySelectorAll('.phaselist > div > .clamp1').forEach((x) => { if (done.has(phaseN(x.textContent))) x.after(label()); });
+      // Inside a heading (a block), beside a summary's title (a flex row).
+      doc.querySelectorAll('.in h2, .in h3, .in h4, .in h5, .in h6').forEach((x) => { if (done.has(phaseN(x.textContent))) x.append(label()); });
+      doc.querySelectorAll('details.sec > summary > span:first-child').forEach((x) => { if (done.has(phaseN(x.textContent))) x.after(label()); });
+    }
+    const items = [...doc.querySelectorAll('[data-chg]')];
+    const m = items.length;
+    if (!m) return hideBar();
+    if (st.cur >= m) st.cur = m - 1;
+    if (st.cur >= 0) items[st.cur].classList.add('chg-cur');
+    const bar = document.getElementById('docChanges');
+    if (!bar) return;
+    bar.hidden = false;
+    bar.innerHTML = `<span class="chg-n">${st.cur >= 0 ? `Change ${st.cur + 1} of ${m}` : `${m} change${m === 1 ? '' : 's'}`}</span>
+      <button class="chg-step" data-step="-1" aria-label="Previous change" title="Previous change"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 7.5l3-3 3 3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg></button>
+      <button class="chg-step" data-step="1" aria-label="Next change" title="Next change"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg></button>
+      <button class="chg-seen" title="Forget these changes: what you see now becomes the last look">Mark seen</button>`;
+    bar.querySelectorAll('[data-step]').forEach((b) => (b.onclick = () => {
+      const step = Number(b.dataset.step);
+      st.cur = st.cur < 0 ? (step > 0 ? 0 : m - 1) : (st.cur + step + m) % m;
+      const target = items[st.cur];
+      if (target.tagName === 'DETAILS') target.open = true;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      apply(last);
+    }));
+    bar.querySelector('.chg-seen').onclick = () => {
+      st.snap = md;
+      st.cur = -1;
+      store.set(file, md);
+      clear();
+      hideBar();
+    };
+  }
+
+  /** Take every mark off the current render (after Mark seen). */
+  function clear() {
+    document.querySelectorAll('.chg-inj').forEach((x) => x.remove());
+    document.querySelectorAll('.chg, .chg-add, .chg-cur, [data-chg]').forEach((x) => {
+      x.classList.remove('chg', 'chg-add', 'chg-cur');
+      delete x.dataset.chg;
+    });
+  }
+
+  window.MontyChanges = { splitDoc, diffDoc, lineDiff, titleKey, init, store, apply };
 })();

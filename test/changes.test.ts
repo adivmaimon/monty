@@ -202,6 +202,11 @@ test('browser store: round trip, first open is null, a full store drops our olde
   assert.equal(await s.get('/r/d.md'), null);
 });
 
+test('apply is a quiet no-op without a page to draw on', () => {
+  assert.doesNotThrow(() => C.apply({ file: '/r/a.md', md: PLAN, raw: false }));
+  assert.doesNotThrow(() => C.apply(undefined));
+});
+
 test('browser store: no localStorage at all reads as unavailable, not as first open', async () => {
   const w: { window: any } = { window: {} };
   Object.defineProperty(w.window, 'localStorage', { get() { throw new Error('SecurityError'); } });
