@@ -11,6 +11,7 @@ import { execFile, spawn } from 'node:child_process';
 import { changedLineRange, hunkRanges } from './diff';
 import { findApp, installMenuBarApp, offerMenuBarApp } from './install';
 import { ReadableByDefault } from './readable';
+import { webviewPage } from './webpage';
 
 interface Session {
   id: string;
@@ -148,6 +149,9 @@ const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'build', '.build', 'o
 const SKIP_FILES = /(\.log|\.pyc|\.lock|-lock\.json|\.lockb|\.DS_Store|\.map)$/;
 
 let workspaceState: vscode.Memento | undefined;
+/** Brief or Full, chosen in any reader tab: one choice for every window, kept across restarts. */
+let globalState: vscode.Memento | undefined;
+const READER_MODE_KEY = 'monty.readerMode';
 let highlight: vscode.TextEditorDecorationType | undefined;
 let workingUntil = 0;
 const snapshots = new Map<string, string>(); // abs path -> last text seen, to diff the next change against
@@ -314,17 +318,19 @@ function html(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
   const webDir = vscode.Uri.joinPath(extUri, 'media', 'web');
   const nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   const uri = (f: string) => webview.asWebviewUri(vscode.Uri.joinPath(webDir, f)).toString();
-  let page = fs.readFileSync(vscode.Uri.joinPath(webDir, 'index.html').fsPath, 'utf8');
-  page = page
-    .replace(/<link rel="icon"[^>]*>/, '')
-    .replace('href="style.css"', `href="${uri('style.css')}"`)
-    .replace('<script src="md.js"></script>', `<script nonce="${nonce}" src="${uri('md.js')}"></script>`)
-    .replace('<script src="app.js"></script>', `<script nonce="${nonce}">window.MONTY = ${JSON.stringify({ ...config, nonce, mermaidSrc: uri('vendor/mermaid.min.js') }).replace(/</g, '\\u003c')};</script><script nonce="${nonce}" src="${uri('app.js')}"></script>`)
-    .replace(
-      '<meta charset="utf-8">',
-      `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} data:; font-src ${webview.cspSource};">`,
-    );
-  return page;
+  const page = fs.readFileSync(vscode.Uri.joinPath(webDir, 'index.html').fsPath, 'utf8');
+  const readerMode = globalState?.get<string>(READER_MODE_KEY);
+  return webviewPage(page, { uri, nonce, cspSource: webview.cspSource, config: { ...config, nonce, mermaidSrc: uri('vendor/mermaid.min.js'), readerMode } });
+}
+
+/** Asks the core; the webview's CSP keeps it from fetching 127.0.0.1 itself. */
+async function core(pathAndQuery: string, init?: RequestInit): Promise<unknown> {
+  try {
+    const res = await fetch(`http://127.0.0.1:${cfg().port}${pathAndQuery}`, { ...init, signal: AbortSignal.timeout(5000) });
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 function wire(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string, unknown>): vscode.Disposable {
@@ -354,6 +360,19 @@ function wire(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
       readable?.keepAsText(vscode.Uri.file(m.file));
       void vscode.commands.executeCommand('vscode.openWith', vscode.Uri.file(m.file), 'default', { preview: false });
     }
+    // The reader's Brief and Full modes (web/reader-modes.js): data and answers go through the core.
+    if (m.type === 'getReader' && typeof m.file === 'string') {
+      post(webview, { type: 'reader', id: m.id, data: await core(`/api/reader?file=${encodeURIComponent(m.file)}`) });
+    }
+    if (m.type === 'answer' && m.body && typeof m.body.file === 'string') {
+      // The core writes the file on disk; unsaved edits in an editor would then conflict with it.
+      const dirty = vscode.workspace.textDocuments.some((d) => d.uri.fsPath === m.body.file && d.isDirty);
+      const result = dirty
+        ? { ok: false, error: 'Save the plan first; it has unsaved changes.' }
+        : (await core('/api/answer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(m.body) })) ?? { ok: false, error: 'Monty is not answering just now.' };
+      post(webview, { type: 'answered', id: m.id, result });
+    }
+    if (m.type === 'setReaderMode' && (m.mode === 'brief' || m.mode === 'full')) void globalState?.update(READER_MODE_KEY, m.mode);
     if (m.type === 'getDoc' && typeof m.file === 'string') {
       let text = `Could not open ${m.file}`;
       // Markdown, and AI tool rule files that are markdown under another name (same list as the core's /api/doc).
@@ -564,6 +583,7 @@ export function activate(context: vscode.ExtensionContext) {
   const extUri = context.extensionUri;
   extensionRoot = context.extensionPath;
   workspaceState = context.workspaceState;
+  globalState = context.globalState;
   startMenuBarApp();
   if (cfg().menuBar) void offerMenuBarApp(context, cfg().appPath);
   const touched = new TouchedFiles();
