@@ -1,0 +1,20 @@
+{
+ "commit": "abc1234",
+ "files": {
+  "src/core.ts": {"area": "src", "imports": [], "lang": "js", "lines": 10, "packages": []},
+  "src/util.ts": {"area": "src", "imports": ["src/core.ts"], "lang": "js", "lines": 10, "packages": []},
+  "src/hub.ts": {"area": "src", "imports": ["src/core.ts"], "lang": "js", "lines": 10, "packages": []},
+  "src/a.ts": {"area": "src", "imports": ["src/hub.ts"], "lang": "js", "lines": 10, "packages": []},
+  "src/b.ts": {"area": "src", "imports": ["src/hub.ts"], "lang": "js", "lines": 10, "packages": []},
+  "src/lonely.ts": {"area": "src", "imports": [], "lang": "js", "lines": 10, "packages": []},
+  "web/c.ts": {"area": "web", "imports": ["src/hub.ts"], "lang": "js", "lines": 10, "packages": []},
+  "web/d.ts": {"area": "web", "imports": ["src/util.ts"], "lang": "js", "lines": 10, "packages": []},
+  "web/e.ts": {"area": "web", "imports": ["web/d.ts"], "lang": "js", "lines": 10, "packages": []},
+  "test/hub.test.ts": {"area": "test", "imports": ["src/a.ts"], "lang": "js", "lines": 10, "packages": []}
+ },
+ "generated": "2026-11-06T00:00:00Z",
+ "other_files": 0,
+ "root": "blast-repo",
+ "unresolved": 0,
+ "version": "0.1.5"
+}

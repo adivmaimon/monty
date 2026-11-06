@@ -11,6 +11,7 @@ import { codexAdapter } from './agents/codex.js';
 import { clineAdapter, rooAdapter } from './agents/cline.js';
 import type { AgentAdapter, SessionSource } from './agents/types.js';
 import { listRepos, scanRepo } from './projects.js';
+import { withBlast } from './blast.js';
 import { hasSetup, readSetup } from './setup.js';
 import type { MontyState, Project, RepoSetup, Session, SessionPlan } from './types.js';
 
@@ -122,7 +123,7 @@ export class MontyStore {
 
   rescanProjects(nowMs = Date.now()): void {
     const repos = this.repos(nowMs);
-    this.projects = repos.flatMap((r) => scanRepo(r));
+    this.projects = repos.flatMap((r) => withBlast(scanRepo(r), r));
     // Setup files change about as often as plans, so they ride the same 10s scan.
     this.setups = repos.map(readSetup).filter(hasSetup);
     this.emitIfChanged();

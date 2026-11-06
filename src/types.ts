@@ -144,6 +144,37 @@ export interface Project {
 
   label?: string;
   updatedAt: string;
+  /** What the files this open spec edits reach through the import graph. Only with a Caddis map (src/blast.ts). */
+  blast?: BlastRadius;
+}
+
+/**
+ * A spec's blast radius, from `.caddis/map/graph.json` (the same rules as Caddis's
+ * `map.py reach`). Paths are repo-relative. Lists are capped; the totals are not.
+ */
+export interface BlastRadius {
+  /** The commit the map was built at: it is used as found, never rebuilt. */
+  mapCommit?: string;
+  /** Files the spec names that are in the map and imported by something. */
+  edited: string[];
+  /** Files the spec names that are in the map but nothing imports. */
+  unimported: number;
+  /** Source paths the spec names that are neither in the map nor on disk. */
+  newFiles: number;
+  /** Direct importers of the edited files, hubs marked. */
+  importers: { file: string; area: string; hub: boolean }[];
+  importersTotal: number;
+  importersByArea: { area: string; files: number }[];
+  /** Hubs (20 most imported, 3+ importers) in the reach or among the edited files. */
+  hubs: { file: string; importers: number; target: boolean }[];
+  /** Files that import the edited ones, directly or not. */
+  reach: number;
+  /** Of those, how many go through a hub that is not itself edited. */
+  viaHubs: number;
+  byArea: { area: string; files: number; viaHubs: number }[];
+  /** Direct importers no test file imports, directly or through others. */
+  untested: string[];
+  untestedTotal: number;
 }
 
 /** An AI coding tool whose config a repo carries. */
