@@ -127,6 +127,14 @@ function pathKey(ref: string): string {
  * Each project is parsed on its own: one that fails just has no links (degrade, don't crash).
  */
 export function linkSpecs(projects: Project[], readFile: (f: string) => string = read): Project[] {
+  try {
+    return link(projects, readFile);
+  } catch {
+    return projects; // the roadmap shows the specs unconnected rather than the scan failing
+  }
+}
+
+function link(projects: Project[], readFile: (f: string) => string): Project[] {
   const byKey = new Map<string, Project>();
   const byDir = new Map<string, Project>();
   // Earlier entries win a shared key: projects.ts lists plans before framework specs.
@@ -150,7 +158,13 @@ export function linkSpecs(projects: Project[], readFile: (f: string) => string =
         };
         for (const link of refs.links) {
           if (/^[a-z]+:/i.test(link)) continue; // http:, vscode:: not a file in the repo
-          const abs = path.resolve(path.dirname(f), decodeURIComponent(link.replace(/#.*$/, '')));
+          let target = link.replace(/#.*$/, '');
+          try {
+            target = decodeURIComponent(target);
+          } catch {
+            /* a malformed %-escape: try the link as written */
+          }
+          const abs = path.resolve(path.dirname(f), target);
           add(byFile.get(abs) ?? byDir.get(abs) ?? byDir.get(path.dirname(abs)) ?? byKey.get(norm(pathKey(link))));
         }
         for (const item of refs.items) {
