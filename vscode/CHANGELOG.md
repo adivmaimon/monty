@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Roadmap: every plan in a repo as a card in Done, Active and Next, with lines for what depends on what (from `Depends on`, `Requires` or `Blocked by` lines that link or name another spec). Click a card to light up what it needs and unblocks. Loops are drawn and called out. Opens from the Plans card and a plan's header, in its own tab in VS Code.
+
 ## 0.5.1
 
 - Adding Caddis as an option.

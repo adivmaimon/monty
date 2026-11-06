@@ -11,6 +11,7 @@ import { execFile, spawn } from 'node:child_process';
 import { changedLineRange, hunkRanges } from './diff';
 import { findApp, installMenuBarApp, offerMenuBarApp } from './install';
 import { ReadableByDefault } from './readable';
+import { webviewPage } from './webview';
 
 interface Session {
   id: string;
@@ -314,17 +315,8 @@ function html(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
   const webDir = vscode.Uri.joinPath(extUri, 'media', 'web');
   const nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   const uri = (f: string) => webview.asWebviewUri(vscode.Uri.joinPath(webDir, f)).toString();
-  let page = fs.readFileSync(vscode.Uri.joinPath(webDir, 'index.html').fsPath, 'utf8');
-  page = page
-    .replace(/<link rel="icon"[^>]*>/, '')
-    .replace('href="style.css"', `href="${uri('style.css')}"`)
-    .replace('<script src="md.js"></script>', `<script nonce="${nonce}" src="${uri('md.js')}"></script>`)
-    .replace('<script src="app.js"></script>', `<script nonce="${nonce}">window.MONTY = ${JSON.stringify({ ...config, nonce, mermaidSrc: uri('vendor/mermaid.min.js') }).replace(/</g, '\\u003c')};</script><script nonce="${nonce}" src="${uri('app.js')}"></script>`)
-    .replace(
-      '<meta charset="utf-8">',
-      `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} data:; font-src ${webview.cspSource};">`,
-    );
-  return page;
+  const page = fs.readFileSync(vscode.Uri.joinPath(webDir, 'index.html').fsPath, 'utf8');
+  return webviewPage(page, { uri, nonce, cspSource: webview.cspSource, config });
 }
 
 function wire(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string, unknown>): vscode.Disposable {
@@ -349,6 +341,7 @@ function wire(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
     }
     if (m.type === 'openDoc' && typeof m.file === 'string') openReadable(extUri, m.file);
     if (m.type === 'openDetails') openDetails(extUri);
+    if (m.type === 'openRoadmap') openRoadmap(extUri, typeof m.select === 'string' ? m.select : '');
     if (m.type === 'setFollow') setFollow(!!m.on);
     if (m.type === 'editAsText' && typeof m.file === 'string') {
       readable?.keepAsText(vscode.Uri.file(m.file));
@@ -450,6 +443,26 @@ function openDetails(extUri: vscode.Uri) {
     // Forget the panel first: anything below that throws must not leave a dead panel
     // behind for the next "Open details" to reveal ("Webview is disposed").
     if (detailsPanel === panel) detailsPanel = undefined;
+    webviews.delete(webview);
+    sub.dispose();
+  });
+}
+
+/** The roadmap: one tab per window with every plan in this repo and how they depend on each other. */
+let roadmapPanel: vscode.WebviewPanel | undefined;
+function openRoadmap(extUri: vscode.Uri, select: string) {
+  if (roadmapPanel) {
+    if (select) post(roadmapPanel.webview, { type: 'roadmapSelect', id: select });
+    return roadmapPanel.reveal();
+  }
+  const repo = repoRoot();
+  const panel = vscode.window.createWebviewPanel('monty.roadmap', `Roadmap · ${repo ? path.basename(repo) : 'all'}`, vscode.ViewColumn.Active, { enableScripts: true, retainContextWhenHidden: true });
+  panel.iconPath = tabIcon(extUri);
+  const webview = panel.webview;
+  const sub = wire(webview, extUri, { host: true, mode: 'roadmap', repo, select });
+  roadmapPanel = panel;
+  panel.onDidDispose(() => {
+    if (roadmapPanel === panel) roadmapPanel = undefined;
     webviews.delete(webview);
     sub.dispose();
   });
