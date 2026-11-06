@@ -11,6 +11,11 @@
 - The active plan in the editor: the explorer marks the files it changed (●), the ones it names but hasn't touched yet (○) and changes outside what it names (◆); a line at the top of a file names the plan changing it and how many earlier plans did, and lists them on click; the status bar shows the plan and its phase.
 - `monty.planBlame` (off by default): plan names above each block of code on screen, from git blame.
 - Roadmap: every plan in a repo as a card in Done, Active and Next, with lines for what depends on what (from `Depends on`, `Requires` or `Blocked by` lines that link or name another spec). Click a card to light up what it needs and unblocks. Loops are drawn and called out. Opens from the Plans card and a plan's header, in its own tab in VS Code.
+- Plans and specs open in Brief: title, status, risk, goal, a phase stepper with dates, the current phase's gate or checklist, open questions and which of the plan's files have changed.
+- Full shows the whole document with a table of contents that follows your scroll. Changes draw as a file tree, Phases as a stepper, Tests as rows, and "None" or "Skipped" sections fold into one line.
+- Answer a plan's open question with one click (its default, or your own words): Monty writes a dated decision under it, and Undo takes it out again. This is the only time Monty writes to a file, and only when you click.
+- GitHub callouts (`> [!NOTE]`, `> [!WARNING]` and the rest) render as tinted boxes.
+- The reader remembers whether you last chose Brief or Full.
 
 ## 0.5.1
 

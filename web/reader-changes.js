@@ -354,11 +354,14 @@
     clear(); // stepping redraws onto the same render
     // Rendered sections in order, paired with the diff's by title (app.js may leave one out,
     // the Goal when the header already shows it).
-    const els = [...doc.querySelectorAll('details.sec')];
+    // Sections as the reader draws them: Full mode's <section class="rm-sec"> (web/reader-modes.js),
+    // or the older collapsible <details class="sec">.
+    const els = [...doc.querySelectorAll('details.sec, section.rm-sec')];
+    const titleEl = (el) => el.querySelector('summary > span') || el.querySelector('.rm-h2 > h2');
     const elFor = new Map();
     let k = 0;
     for (const el of els) {
-      const sum = el.querySelector('summary > span');
+      const sum = titleEl(el);
       const t = norm(sum ? sum.textContent : '');
       let j = k;
       while (j < d.sections.length && norm(d.sections[j].title) !== t) j++;
@@ -369,7 +372,7 @@
       box.innerHTML = html;
       return box.firstElementChild;
     };
-    const hero = doc.querySelector('.hero');
+    const hero = doc.querySelector('.hero, .rm-head');
     if (hero && d.preamble.changed) { hero.classList.add('chg'); hero.dataset.chg = '1'; }
     const level = (label, v) => `<div class="chg-inj chg-level" title="${escH(label)} changed since you last looked"><span class="chg-k">${escH(label)}</span><del>${escH(v.from)}</del><span aria-hidden="true">→</span><span class="chg-to">${escH(v.to)}</span></div>`;
     if (hero && d.status) {
@@ -382,15 +385,15 @@
       if (!el || s.kind === 'same') return;
       el.classList.add('chg');
       el.dataset.chg = '1';
-      const sum = el.querySelector('summary > span');
+      const sum = titleEl(el);
       if (sum && s.kind === 'added') sum.after(inject('<span class="chg-inj chg-tag">new</span>'));
       if (sum && s.kind === 'renamed') sum.after(inject(`<span class="chg-inj chg-tag">was <del>${escH(s.from)}</del></span>`));
-      const toc = side && side.querySelector(`a[data-sec="${el.dataset.i}"]`);
+      const toc = side && side.querySelector(el.dataset.rmSec !== undefined ? `a[data-rm-toc="${el.dataset.rmSec}"]` : `a[data-sec="${el.dataset.i}"]`);
       if (toc) toc.appendChild(inject('<span class="chg-inj chg-dot" title="Changed since you last looked"></span>'));
       // Changed sections open the first time they show; after that the reader's own choice stands.
       const key = titleKey(s.title);
-      if (!st.opened.has(key)) { st.opened.add(key); if (!el.open) el.open = true; }
-      const body = el.querySelector('.in');
+      if (!st.opened.has(key)) { st.opened.add(key); if (el.tagName === 'DETAILS' && !el.open) el.open = true; }
+      const body = el.querySelector('.in') || (el.tagName === 'SECTION' ? el : null);
       if (body && /^risks?\b/.test(key) && d.risk) body.prepend(inject(level('Risk', d.risk)));
       // New text: rendered blocks of this section that the old body did not have. A whole new
       // section is marked by its bar alone; highlighting all of it says nothing more.
@@ -423,6 +426,8 @@
       if (side) side.querySelectorAll('.phaselist > div > .clamp1').forEach((x) => { if (done.has(phaseN(x.textContent))) x.after(label()); });
       // Inside a heading (a block), beside a summary's title (a flex row).
       doc.querySelectorAll('.in h2, .in h3, .in h4, .in h5, .in h6').forEach((x) => { if (done.has(phaseN(x.textContent))) x.append(label()); });
+      // Full mode's phase stepper keys each step "<file>#ph<n>" (web/reader-modes.js).
+      doc.querySelectorAll('[data-rm-ph] .rm-st').forEach((x) => { const m = /#ph(\d+)$/.exec(x.closest('[data-rm-ph]').dataset.rmPh); if (m && done.has(Number(m[1]))) x.after(label()); });
       doc.querySelectorAll('details.sec > summary > span:first-child').forEach((x) => { if (done.has(phaseN(x.textContent))) x.after(label()); });
     }
     const items = [...doc.querySelectorAll('[data-chg]')];

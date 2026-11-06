@@ -9,6 +9,8 @@
 //   GET /api/excerpt?file=&line=   a few lines of a source file under a project root (hover previews)
 //   GET /api/footprint?file=   a known spec's footprint: files it names vs files changed (src/footprint.ts)
 //   GET /api/history?repo=  which plans changed which files (src/history.ts), for a known repo
+//   GET /api/reader?file= what the reader's Brief and Full modes add for a plan (src/reader.ts)
+//   POST /api/answer      answer or un-answer a plan's open question, on a click (src/answers.ts)
 //   POST /api/intent?repo=&doc=   ask the VS Code window for that repo to show Monty (or a plan)
 //   GET  /api/intent?repo=        that window collects it (each intent is delivered once)
 
@@ -24,6 +26,8 @@ import { renderMonocle, type Badge } from './icon.js';
 import { readExcerpt } from './excerpt.js';
 import { footprint, projectForDoc } from './footprint.js';
 import { emptyHistory, historyFor } from './history.js';
+import { knownPlanFile, readerData } from './reader.js';
+import { answerRoute } from './answers.js';
 
 const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'web');
 
@@ -159,6 +163,16 @@ function route(url: URL, req: http.IncomingMessage, res: http.ServerResponse, cf
       );
       return;
     }
+    case '/api/reader': {
+      const file = path.resolve(url.searchParams.get('file') ?? '');
+      const st = store.state();
+      const p = knownPlanFile(file, st.projects, (f) => isUnderKnown(f, cfg.projectRoots, store.repos()));
+      if (!p) return json(res, null);
+      return void readerData(p, st.sessions).then((d) => json(res, d), () => json(res, null));
+    }
+    case '/api/answer':
+      // The only write: a known plan's file under a project root, checked again in answers.ts.
+      return answerRoute(req, res, cfg.port, (file) => !!knownPlanFile(file, store.state().projects, (f) => isUnderKnown(f, cfg.projectRoots, store.repos())));
     default:
       return serveStatic(url.pathname, res);
   }

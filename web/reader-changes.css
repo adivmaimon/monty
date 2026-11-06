@@ -9,8 +9,8 @@
 .chgbar .chg-seen:hover{background:var(--card)}
 
 /* The gutter mark: a bar down the left edge of a changed section or header. */
-.sec.chg{border-left:3px solid var(--orchid)}
-.hero.chg{border-left:3px solid var(--orchid);padding-left:14px}
+.sec.chg,.rm-sec.chg{border-left:3px solid var(--orchid);padding-left:12px}
+.hero.chg,.rm-head.chg{border-left:3px solid var(--orchid);padding-left:14px}
 .chg-cur{outline:1px solid var(--orchid);outline-offset:3px}
 
 .chg-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--orchid);margin-left:8px;vertical-align:middle;flex:0 0 auto}

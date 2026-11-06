@@ -153,6 +153,9 @@ const SKIP_FILES = /(\.log|\.pyc|\.lock|-lock\.json|\.lockb|\.DS_Store|\.map)$/;
 let workspaceState: vscode.Memento | undefined;
 // Specs as last seen in the readable view, for its "changed since last look" marks.
 let seen: SeenStore | undefined;
+/** Brief or Full, chosen in any reader tab: one choice for every window, kept across restarts. */
+let globalState: vscode.Memento | undefined;
+const READER_MODE_KEY = 'monty.readerMode';
 let highlight: vscode.TextEditorDecorationType | undefined;
 let workingUntil = 0;
 const snapshots = new Map<string, string>(); // abs path -> last text seen, to diff the next change against
@@ -321,7 +324,17 @@ function html(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
   const uri = (f: string) => webview.asWebviewUri(vscode.Uri.joinPath(webDir, f)).toString();
   const page = fs.readFileSync(vscode.Uri.joinPath(webDir, 'index.html').fsPath, 'utf8');
   const csp = `default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} data:; font-src ${webview.cspSource};`;
-  return webviewPage(page, uri, nonce, { ...config, nonce, mermaidSrc: uri('vendor/mermaid.min.js') }, csp);
+  return webviewPage(page, uri, nonce, { ...config, nonce, mermaidSrc: uri('vendor/mermaid.min.js'), readerMode: globalState?.get<string>(READER_MODE_KEY) }, csp);
+}
+
+/** Asks the core; the webview's CSP keeps it from fetching 127.0.0.1 itself. */
+async function core(pathAndQuery: string, init?: RequestInit): Promise<unknown> {
+  try {
+    const res = await fetch(`http://127.0.0.1:${cfg().port}${pathAndQuery}`, { ...init, signal: AbortSignal.timeout(5000) });
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 /** Core routes a webview may ask for through the extension. */
@@ -371,6 +384,19 @@ function wire(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
     }
     if (m.type === 'getSeen' && typeof m.file === 'string') post(webview, { type: 'seen', id: m.id, text: seen?.get(m.file) ?? null });
     if (m.type === 'setSeen' && typeof m.file === 'string' && typeof m.text === 'string') seen?.set(m.file, m.text);
+    // The reader's Brief and Full modes (web/reader-modes.js): data and answers go through the core.
+    if (m.type === 'getReader' && typeof m.file === 'string') {
+      post(webview, { type: 'reader', id: m.id, data: await core(`/api/reader?file=${encodeURIComponent(m.file)}`) });
+    }
+    if (m.type === 'answer' && m.body && typeof m.body.file === 'string') {
+      // The core writes the file on disk; unsaved edits in an editor would then conflict with it.
+      const dirty = vscode.workspace.textDocuments.some((d) => d.uri.fsPath === m.body.file && d.isDirty);
+      const result = dirty
+        ? { ok: false, error: 'Save the plan first; it has unsaved changes.' }
+        : (await core('/api/answer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(m.body) })) ?? { ok: false, error: 'Monty is not answering just now.' };
+      post(webview, { type: 'answered', id: m.id, result });
+    }
+    if (m.type === 'setReaderMode' && (m.mode === 'brief' || m.mode === 'full')) void globalState?.update(READER_MODE_KEY, m.mode);
     if (m.type === 'getDoc' && typeof m.file === 'string') {
       let text = `Could not open ${m.file}`;
       // Markdown, and AI tool rule files that are markdown under another name (same list as the core's /api/doc).
@@ -615,6 +641,7 @@ export function activate(context: vscode.ExtensionContext) {
   extensionRoot = context.extensionPath;
   workspaceState = context.workspaceState;
   seen = new SeenStore(path.join(context.globalStorageUri.fsPath, 'seen'));
+  globalState = context.globalState;
   startMenuBarApp();
   if (cfg().menuBar) void offerMenuBarApp(context, cfg().appPath);
   const touched = new TouchedFiles();

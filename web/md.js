@@ -179,8 +179,13 @@
       if (/^\s*>/.test(l)) {
         const q = [];
         while (i < lines.length && /^\s*>/.test(lines[i])) q.push(lines[i++].replace(/^\s*>\s?/, ''));
+        // GitHub callouts: "> [!WARNING]" on the first line makes the quote a tinted box.
+        const call = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(.*)$/i.exec(q[0] || '');
+        if (call) q[0] = call[2];
         const inner = render(q.join('\n'), ctx);
-        blocks.push({ html: `<blockquote>${inner.preamble}${inner.sections.map((s) => s.html).join('')}</blockquote>` });
+        const html = inner.preamble + inner.sections.map((s) => s.html).join('');
+        const kind = call && call[1].toLowerCase();
+        blocks.push({ html: call ? `<div class="callout callout-${kind}" role="note"><div class="callout-t">${kind}</div>${html}</div>` : `<blockquote>${html}</blockquote>` });
         continue;
       }
       if (/^\s*(---|\*\*\*)\s*$/.test(l)) { i++; continue; }
