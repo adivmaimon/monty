@@ -215,5 +215,73 @@
     return { sections, removed, preamble, status, risk, phasesDone, count };
   }
 
-  window.MontyChanges = { splitDoc, diffDoc, lineDiff, titleKey };
+  // ---------- snapshot store ----------
+  // get() resolves to the text as last seen, null when never seen (first open: save it),
+  // or undefined when storage can't be reached (then nothing is saved or marked).
+
+  const KEY = 'monty.seen:';
+  // The extension answers from disk in milliseconds; past this it is not going to.
+  const SEEN_TIMEOUT_MS = 3000;
+  let post = null; // set by init() in VS Code: messages go to the extension
+  const waiting = new Map();
+
+  function onMessage(m) {
+    if (m && m.type === 'seen' && waiting.has(m.id)) {
+      waiting.get(m.id)(typeof m.text === 'string' ? m.text : null);
+      waiting.delete(m.id);
+    }
+  }
+
+  const store = {
+    get(file) {
+      if (post) {
+        return new Promise((resolve) => {
+          const id = Math.random().toString(36).slice(2);
+          waiting.set(id, resolve);
+          post({ type: 'getSeen', file, id });
+          setTimeout(() => { if (waiting.delete(id)) resolve(undefined); }, SEEN_TIMEOUT_MS);
+        });
+      }
+      try {
+        const raw = window.localStorage.getItem(KEY + file);
+        if (raw == null) return Promise.resolve(null);
+        const rec = JSON.parse(raw);
+        return Promise.resolve(rec && typeof rec.text === 'string' ? rec.text : null);
+      } catch {
+        return Promise.resolve(undefined);
+      }
+    },
+    set(file, text) {
+      if (post) return post({ type: 'setSeen', file, text });
+      const ls = (() => { try { return window.localStorage; } catch { return null; } })();
+      if (!ls) return;
+      const rec = JSON.stringify({ text, at: Date.now() });
+      try {
+        ls.setItem(KEY + file, rec);
+      } catch {
+        // Full: drop the oldest half of our own entries, then try once more.
+        try {
+          const ours = [];
+          for (let i = 0; i < ls.length; i++) {
+            const k = ls.key(i);
+            if (k && k.startsWith(KEY) && k !== KEY + file) {
+              let at = 0;
+              try { at = JSON.parse(ls.getItem(k)).at || 0; } catch { /* unreadable: oldest */ }
+              ours.push([at, k]);
+            }
+          }
+          ours.sort((x, y) => x[0] - y[0]).slice(0, Math.ceil(ours.length / 2)).forEach(([, k]) => ls.removeItem(k));
+          ls.setItem(KEY + file, rec);
+        } catch { /* still no room: this spec just won't be marked next time */ }
+      }
+    },
+  };
+
+  /** VS Code: `post` sends a message to the extension; its replies arrive as window messages. */
+  function init(opts) {
+    post = (opts && opts.post) || null;
+    if (post) window.addEventListener('message', (ev) => onMessage(ev.data));
+  }
+
+  window.MontyChanges = { splitDoc, diffDoc, lineDiff, titleKey, init, store };
 })();

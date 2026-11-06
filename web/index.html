@@ -6,6 +6,7 @@
 <title>Monty</title>
 <link rel="icon" href="/api/icon.png?pct=0.75&size=64">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="reader-changes.css">
 </head>
 <body>
 <!-- In VS Code the extension serves this same page into a webview and sets window.MONTY. -->
@@ -34,6 +35,7 @@
     <a href="#" id="back" class="btn">Back</a>
     <span id="docPath" class="mono muted clamp1"></span>
     <span class="spacer"></span>
+    <div id="docChanges" class="chgbar" hidden></div>
     <div class="seg" role="group" aria-label="View">
       <button id="viewNice" aria-pressed="true">Readable</button>
       <button id="viewRaw" aria-pressed="false">Raw</button>
@@ -47,6 +49,7 @@
 </div>
 
 <script src="md.js"></script>
+<script src="reader-changes.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

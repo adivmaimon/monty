@@ -172,3 +172,40 @@ test('lineDiff: LCS and the long-section fallback agree on what is new', () => {
   assert.deepEqual([...d.added], ['new one']);
   assert.equal(d.removed, 1);
 });
+
+test('browser store: round trip, first open is null, a full store drops our oldest entries', async () => {
+  const data = new Map<string, string>();
+  let room = 3;
+  const ls = {
+    get length() { return data.size; },
+    key: (i: number) => [...data.keys()][i] ?? null,
+    getItem: (k: string) => data.get(k) ?? null,
+    removeItem: (k: string) => { data.delete(k); },
+    setItem: (k: string, v: string) => { if (!data.has(k) && data.size >= room) throw new Error('QuotaExceededError'); data.set(k, v); },
+  };
+  const w: { window: any } = { window: { localStorage: ls } };
+  vm.runInNewContext(fs.readFileSync(SRC, 'utf8'), w);
+  const s = w.window.MontyChanges.store;
+  assert.equal(await s.get('/r/a.md'), null);
+  s.set('/r/a.md', 'A');
+  assert.equal(await s.get('/r/a.md'), 'A');
+  data.set('someone-else', 'x'); // not ours: never removed
+  s.set('/r/b.md', 'B');
+  s.set('/r/c.md', 'C'); // full: a.md (the oldest of ours) goes
+  assert.equal(await s.get('/r/c.md'), 'C');
+  assert.equal(data.has('monty.seen:/r/a.md'), false, 'the oldest of ours went');
+  assert.equal(data.get('someone-else'), 'x');
+  assert.ok(data.size <= room);
+  room = 0;
+  data.clear();
+  s.set('/r/d.md', 'D'); // no room at all: nothing stored, no throw
+  assert.equal(await s.get('/r/d.md'), null);
+});
+
+test('browser store: no localStorage at all reads as unavailable, not as first open', async () => {
+  const w: { window: any } = { window: {} };
+  Object.defineProperty(w.window, 'localStorage', { get() { throw new Error('SecurityError'); } });
+  vm.runInNewContext(fs.readFileSync(SRC, 'utf8'), w);
+  assert.equal(await w.window.MontyChanges.store.get('/r/a.md'), undefined);
+  w.window.MontyChanges.store.set('/r/a.md', 'x');
+});
