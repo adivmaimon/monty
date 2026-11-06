@@ -23,6 +23,19 @@ export interface Config {
   clineDir: string;
   /** "User" folders of VS Code and its forks, where Cline, Roo and Copilot Chat keep sessions. */
   editorUserDirs: string[];
+  /**
+   * Monty's own cache folder (MONTY_CACHE_DIR), for indexes it can rebuild (plan history).
+   * Never inside a repo or ~/.claude: Monty writes nowhere it reads from.
+   */
+  cacheDir: string;
+}
+
+// The OS's folder for data an app can regenerate: deleting it only costs a rebuild.
+function cacheDir(env: NodeJS.ProcessEnv): string {
+  if (env.MONTY_CACHE_DIR) return expand(env.MONTY_CACHE_DIR);
+  if (process.platform === 'darwin') return path.join(os.homedir(), 'Library', 'Caches', 'Monty');
+  if (process.platform === 'win32') return path.join(env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local'), 'Monty', 'Cache');
+  return path.join(env.XDG_CACHE_HOME ?? path.join(os.homedir(), '.cache'), 'monty');
 }
 
 // VS Code and the forks that run the same extensions, by their app-data folder name.
@@ -60,5 +73,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     // Same order Cline resolves it: CLINE_DATA_DIR, else $CLINE_DIR/data, else ~/.cline/data.
     clineDir: expand(env.MONTY_CLINE_DIR ?? env.CLINE_DATA_DIR ?? path.join(env.CLINE_DIR ?? path.join(os.homedir(), '.cline'), 'data')),
     editorUserDirs: editorUserDirs(env),
+    cacheDir: cacheDir(env),
   };
 }

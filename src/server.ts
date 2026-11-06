@@ -8,6 +8,7 @@
 //   GET /api/doc?file=    raw markdown, only for files under a project root
 //   GET /api/excerpt?file=&line=   a few lines of a source file under a project root (hover previews)
 //   GET /api/footprint?file=   a known spec's footprint: files it names vs files changed (src/footprint.ts)
+//   GET /api/history?repo=  which plans changed which files (src/history.ts), for a known repo
 //   POST /api/intent?repo=&doc=   ask the VS Code window for that repo to show Monty (or a plan)
 //   GET  /api/intent?repo=        that window collects it (each intent is delivered once)
 
@@ -22,6 +23,7 @@ import { summarise, swiftbarText } from './bar.js';
 import { renderMonocle, type Badge } from './icon.js';
 import { readExcerpt } from './excerpt.js';
 import { footprint, projectForDoc } from './footprint.js';
+import { emptyHistory, historyFor } from './history.js';
 
 const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'web');
 
@@ -116,6 +118,13 @@ function route(url: URL, req: http.IncomingMessage, res: http.ServerResponse, cf
       const mine = intents.filter((i) => under(i.repo, repo) || under(repo, i.repo));
       intents = intents.filter((i) => !mine.includes(i));
       return json(res, mine);
+    }
+    case '/api/history': {
+      // Only a repo Monty already watches: a stray ?repo= must not make it run git anywhere.
+      const repo = path.resolve(url.searchParams.get('repo') ?? '');
+      if (!store.repos().some((r) => under(repo, path.resolve(r)))) return json(res, emptyHistory(repo));
+      void historyFor(repo, store.state().projects, cfg.cacheDir).then((h) => json(res, h), () => json(res, emptyHistory(repo)));
+      return;
     }
     case '/api/doc': {
       const file = path.resolve(url.searchParams.get('file') ?? '');

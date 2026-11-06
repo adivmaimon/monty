@@ -143,6 +143,11 @@
           "default": true,
           "description": "Open markdown files in Monty's readable view. Opens that land on a line (a search result, Go to Line, a link to a line) stay as text, so you can edit there."
         },
+        "monty.planBlame": {
+          "type": "boolean",
+          "default": false,
+          "description": "Above each block of code on screen, name the plan whose commit last changed it (from git blame). Runs git as you scroll, so it is off by default."
+        },
         "monty.menuBarApp": {
           "type": "boolean",
           "default": true,

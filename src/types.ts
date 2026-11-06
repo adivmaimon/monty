@@ -239,3 +239,41 @@ export interface MontyState {
    */
   scripted?: { repo: string; cwd: string; state: SessionState }[];
 }
+
+/**
+ * How a commit was tied to a plan (src/history.ts), most exact first. trailer: the
+ * commit's Caddis-Plan line; spec: the commit changed the plan's own file. window and
+ * dates are guesses: a commit touching a file the plan names, inside the span of the
+ * plan's own commits (window) or of the dates written in it (dates).
+ */
+export type HistoryVia = 'trailer' | 'spec' | 'window' | 'dates';
+
+export interface HistorySpec {
+  name: string;
+  /** Absolute, while the plan is in the repo. A trailer naming a plan since deleted has none. */
+  file?: string;
+  status?: ProjectStatus;
+  label?: string;
+  /** Repo-relative files the plan names that exist now. */
+  named: string[];
+  commits: number;
+  first?: string;
+  last?: string;
+}
+
+/** GET /api/history?repo=: which plans changed which files. Empty when the repo has no git history. */
+export interface RepoHistory {
+  repo: string;
+  head?: string;
+  builtAt: string;
+  /** Commits indexed, and whether older ones were left out (MAX_COMMITS in src/history.ts). */
+  commits: number;
+  truncated: boolean;
+  specs: HistorySpec[];
+  /** Repo-relative path -> [index into specs, ISO time of that plan's latest change to it, how], newest first. */
+  files: Record<string, [number, string, HistoryVia][]>;
+  /** Folders holding a file some plan changed: [path, size in bytes] of files in it now, and how many were left out. */
+  areas: { name: string; files: [string, number][]; more: number }[];
+  /** Short sha -> spec indexes, for blame. Only commits tied to a plan. */
+  commitSpecs: Record<string, number[]>;
+}

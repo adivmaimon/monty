@@ -7,6 +7,9 @@
 - Footprint: a plan or spec's readable view shows where its work lands in the repo. Files it names that changed, files it names still untouched, and files changed outside it, drawn as area boxes; click a file to see its phase and open it. Changes come from git since the spec was created and from live sessions working on it.
 - Blast radius: in a repo with a Caddis map, an open plan's header has a button showing what its changes reach: the files it edits that something imports, their importers with hubs marked, reach by area, and importers no test reaches. Repos without the map look as before.
 - Specs show what changed since you last read them: a bar beside each changed section, a dot in the section list, new text highlighted, old status and risk struck through, and "done just now" on phases finished since. Step through with previous and next; Mark seen clears them. The last-seen copy stays in Monty's own storage, never in your repo.
+- Plans per file: the details view maps the repo's folders, each file shaded by how many plans changed it in the last 30 or 90 days or ever. Click a file for those plans, newest first. Plans are matched to commits by Caddis's `Caddis-Plan:` line, by commits that changed the plan itself, or, marked as a guess, by the dates in the plan and the files it names.
+- The active plan in the editor: the explorer marks the files it changed (●), the ones it names but hasn't touched yet (○) and changes outside what it names (◆); a line at the top of a file names the plan changing it and how many earlier plans did, and lists them on click; the status bar shows the plan and its phase.
+- `monty.planBlame` (off by default): plan names above each block of code on screen, from git blame.
 
 ## 0.5.1
 

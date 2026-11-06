@@ -13,6 +13,7 @@ import { findApp, installMenuBarApp, offerMenuBarApp } from './install';
 import { ReadableByDefault } from './readable';
 import { webviewPage } from './page';
 import { SeenStore } from './seen';
+import { fetchHistory, HistoryController } from './historyView';
 
 interface Session {
   id: string;
@@ -22,11 +23,11 @@ interface Session {
   state: 'working' | 'needs_input' | 'your_turn' | 'done' | 'idle';
   stateReason: string;
   progress: { done: number; total: number };
-  plan?: { label: string; name: string };
+  plan?: { label: string; name: string; file?: string };
   now?: { text: string; file?: string };
   touched?: { path: string; reads: number; edits: number; plus: number; minus: number }[];
 }
-interface Project { file: string; name: string }
+interface Project { file: string; name: string; status?: string; label?: string }
 interface State { sessions: Session[]; projects: Project[] }
 
 const POLL_MS = 1500;
@@ -350,6 +351,7 @@ function wire(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
     }
     if (m.type === 'openDoc' && typeof m.file === 'string') openReadable(extUri, m.file);
     if (m.type === 'openDetails') openDetails(extUri);
+    if (m.type === 'getHistory' && typeof m.repo === 'string') post(webview, { type: 'history', id: m.id, history: await fetchHistory(cfg().port, m.repo) });
     if (m.type === 'setFollow') setFollow(!!m.on);
     if (m.type === 'editAsText' && typeof m.file === 'string') {
       readable?.keepAsText(vscode.Uri.file(m.file));
@@ -595,6 +597,8 @@ export function activate(context: vscode.ExtensionContext) {
   startMenuBarApp();
   if (cfg().menuBar) void offerMenuBarApp(context, cfg().appPath);
   const touched = new TouchedFiles();
+  const history = new HistoryController(() => cfg().port, repoRoot, (file) => openReadable(extUri, file));
+  context.subscriptions.push(history);
   context.subscriptions.push(vscode.window.registerFileDecorationProvider(touched));
   const root = repoRoot();
   if (root) {
@@ -643,6 +647,7 @@ export function activate(context: vscode.ExtensionContext) {
     if (!state) return;
     await collectIntents(extUri);
     latest = state;
+    history.onState(state);
     touched.update(state);
     noteWorking(state);
     snapshotTouched(state);
