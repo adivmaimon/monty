@@ -116,6 +116,16 @@
   }
   // Shared with reader-hover.js: there is only one acquireVsCodeApi() handle per page.
   window.MontyHost = { vscode, state: () => state, fetchDoc };
+  // JSON from the core: fetched directly in a browser, through the extension in VS Code
+  // (the webview's CSP allows no network). Null when it fails.
+  function fetchApi(p) {
+    if (!vscode) return fetch(p).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    return new Promise((resolve) => {
+      const id = Math.random().toString(36).slice(2);
+      pendingDocs.set(id, resolve);
+      vscode.postMessage({ type: 'api', path: p, id });
+    });
+  }
   // One click handler for every [data-open] link: files open in a new editor tab.
   document.addEventListener('click', (e) => {
     const a = e.target.closest('[data-open]');
@@ -643,6 +653,8 @@
     $('docSide').innerHTML = `${progressCard}${inChange}
       ${md.sections.length > 1 ? `<div class="side"><h2>Sections</h2>${md.sections.map((s, i) => `<a href="#" data-sec="${i}">${esc(s.title.replace(/[`*]|__/g, ''))}</a>`).join('')}</div>` : ''}
       ${refList.length ? `<div class="side"><h2>Files mentioned</h2>${refList.map((r) => { const [f, l] = r.split(':'); return `<a class="mono" href="#" data-open="${esc(repoPath + '/' + f)}" data-line="${l ? l.split(/[,-]/)[0] : ''}" title="${esc(r)}">${esc(base(f))}${l ? ':' + esc(l.split(/[,-]/)[0]) : ''}</a>`; }).join('')}</div>` : ''}`;
+    // Where the spec's work lands in the repo (web/footprint.js); hidden when there is nothing to show.
+    if (p && window.MontyFootprint) window.MontyFootprint.side(p, { api: fetchApi, side: $('docSide'), reader: $('reader') });
     $('docSide').querySelectorAll('[data-sec]').forEach((a) => (a.onclick = (e) => {
       e.preventDefault();
       const d = $('doc').querySelector(`details.sec[data-i="${a.dataset.sec}"]`);
@@ -777,6 +789,7 @@
       const m = ev.data;
       if (m.type === 'state') onState(m.state);
       if (m.type === 'doc' && pendingDocs.has(m.id)) { pendingDocs.get(m.id)(m.text); pendingDocs.delete(m.id); }
+      if (m.type === 'api' && pendingDocs.has(m.id)) { pendingDocs.get(m.id)(m.body); pendingDocs.delete(m.id); }
       // The plan changed on disk or in an editor (Claude ticking a phase): re-render live.
       if (m.type === 'docText' && cfg.mode === 'doc') { docMd = m.text; renderDoc(); }
       if (m.type === 'follow') { follow = !!m.on; renderAll(); }

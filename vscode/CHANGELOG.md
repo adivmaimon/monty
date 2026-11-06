@@ -4,6 +4,7 @@
 
 - Specs can draw small charts and flows: write YAML in a `chart` or `flow` fenced block (GitHub shows it as plain YAML) and the readable view draws bars or steps. A block Monty can't read shows its source with one line saying why.
 - Hover a file reference in a plan to see the lines it points at, or a link to another plan to see its status, goal and progress. Works from the keyboard too.
+- Footprint: a plan or spec's readable view shows where its work lands in the repo. Files it names that changed, files it names still untouched, and files changed outside it, drawn as area boxes; click a file to see its phase and open it. Changes come from git since the spec was created and from live sessions working on it.
 
 ## 0.5.1
 

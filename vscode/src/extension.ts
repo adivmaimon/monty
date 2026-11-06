@@ -317,19 +317,23 @@ function html(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
   let page = fs.readFileSync(vscode.Uri.joinPath(webDir, 'index.html').fsPath, 'utf8');
   page = page
     .replace(/<link rel="icon"[^>]*>/, '')
-    // Every local stylesheet and script (style.css, blocks.js, md.js, …) by pattern, so a
-    // new web file loads here without another line; app.js keeps its config prelude below.
-    .replace(/href="([\w.-]+\.css)"/g, (_, f) => `href="${uri(f)}"`)
-    .replace(/<script src="(?!app\.js")([\w.-]+\.js)"><\/script>/g, (_, f) => `<script nonce="${nonce}" src="${uri(f)}"></script>`)
-    .replace('<script src="app.js"></script>', `<script nonce="${nonce}">window.MONTY = ${JSON.stringify({ ...config, nonce, mermaidSrc: uri('vendor/mermaid.min.js') }).replace(/</g, '\\u003c')};</script><script nonce="${nonce}" src="${uri('app.js')}"></script>`)
-    // Any other panel script (reader-hover.js...) gets the nonce and a webview URI too.
-    .replace(/<script src="([\w.-]+\.js)"><\/script>/g, (_, f: string) => `<script nonce="${nonce}" src="${uri(f)}"></script>`)
+    // Every stylesheet and script in web/index.html, so a new web file needs no change here.
+    // The CSP only runs scripts carrying the nonce; app.js gets window.MONTY just before it.
+    .replace(/<link rel="stylesheet" href="([\w./-]+)">/g, (_, f: string) => `<link rel="stylesheet" href="${uri(f)}">`)
+    .replace(/<script src="([\w./-]+)"><\/script>/g, (_, f: string) =>
+      (f === 'app.js' ? `<script nonce="${nonce}">window.MONTY = ${JSON.stringify({ ...config, nonce, mermaidSrc: uri('vendor/mermaid.min.js') }).replace(/</g, '\\u003c')};</script>` : '') +
+      `<script nonce="${nonce}" src="${uri(f)}"></script>`)
     .replace(
       '<meta charset="utf-8">',
       `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} data:; font-src ${webview.cspSource};">`,
     );
   return page;
 }
+
+/** Core routes a webview may ask for through the extension. */
+const WEBVIEW_API = ['/api/footprint'];
+// A cold footprint asks git several things (src/footprint.ts gives each call 5s); give it room.
+const API_TIMEOUT_MS = 15_000;
 
 function wire(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string, unknown>): vscode.Disposable {
   webview.options = { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(extUri, 'media')] };
@@ -357,6 +361,17 @@ function wire(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
     if (m.type === 'editAsText' && typeof m.file === 'string') {
       readable?.keepAsText(vscode.Uri.file(m.file));
       void vscode.commands.executeCommand('vscode.openWith', vscode.Uri.file(m.file), 'default', { preview: false });
+    }
+    // Core JSON the page asks for (the webview itself has no network). Only listed routes, only the local core.
+    if (m.type === 'api' && typeof m.path === 'string' && WEBVIEW_API.some((r) => m.path.startsWith(r + '?'))) {
+      let body: unknown = null;
+      try {
+        const res = await fetch(`http://127.0.0.1:${cfg().port}${m.path}`, { signal: AbortSignal.timeout(API_TIMEOUT_MS) });
+        if (res.ok) body = await res.json();
+      } catch {
+        /* core down or slow: the page shows nothing for it */
+      }
+      post(webview, { type: 'api', id: m.id, body });
     }
     if (m.type === 'getDoc' && typeof m.file === 'string') {
       let text = `Could not open ${m.file}`;
