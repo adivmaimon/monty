@@ -144,6 +144,10 @@ export interface Project {
 
   label?: string;
   updatedAt: string;
+  /** Ids of specs in the same repo this one needs, from its Depends on / Requires / Blocked by lines (src/deps.ts). */
+  dependsOn?: string[];
+  /** Open questions still unanswered: bullets under Open Questions, Spec Kit NEEDS CLARIFICATION markers. */
+  questions?: number;
 }
 
 /** An AI coding tool whose config a repo carries. */
