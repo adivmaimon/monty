@@ -352,6 +352,7 @@ const TEST_FILE = /(?:\.(?:test|spec)\.[A-Za-z0-9]+$)|(?:^|\/)(?:tests?|__tests_
 
 /** A repo's git answers in under a second; anything slower is not worth holding the reader for. */
 const GIT_TIMEOUT_MS = 3000;
+/** 400 commits with their file lists fit in a few hundred KB; 8 MB covers a monorepo's without letting one run away. */
 const GIT_MAX_BUFFER = 8 * 1024 * 1024;
 /** Commits looked at since the spec was written: enough for any one plan, bounded for a busy repo. */
 const GIT_MAX_COMMITS = 400;
@@ -359,7 +360,9 @@ const GIT_MAX_COMMITS = 400;
 function git(cwd: string, args: string[]): Promise<string | null> {
   return new Promise((resolve) => {
     try {
-      execFile('git', ['-C', cwd, ...args], { timeout: GIT_TIMEOUT_MS, maxBuffer: GIT_MAX_BUFFER, windowsHide: true }, (err, stdout) => resolve(err ? null : String(stdout)));
+      // --no-optional-locks: plain `git status` refreshes .git/index and takes index.lock to do
+      // it, a write to the user's repo that can make their own commit fail (Invariant 3).
+      execFile('git', ['--no-optional-locks', '-C', cwd, ...args], { timeout: GIT_TIMEOUT_MS, maxBuffer: GIT_MAX_BUFFER, windowsHide: true, env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' } }, (err, stdout) => resolve(err ? null : String(stdout)));
     } catch {
       resolve(null);
     }
@@ -457,6 +460,7 @@ export function readerData(p: Project, sessions: Session[], nowMs = Date.now()):
   if (hit && nowMs - hit.at < CACHE_MS) return hit.data;
   const data = build(p, sessions).catch(() => ({ file: p.file, questions: [], phases: [], files: [], tests: [], git: false }) as ReaderData);
   cache.set(key, { at: nowMs, data });
+  // Plans nobody has looked at for a minute are dropped, so the cache holds only what is open.
   for (const [k, v] of cache) if (nowMs - v.at > 60_000) cache.delete(k);
   return data;
 }
@@ -526,6 +530,8 @@ async function build(p: Project, sessions: Session[]): Promise<ReaderData> {
     if (prefix.startsWith('..')) data.git = false;
     const rel = (g: string) => (prefix ? (g.startsWith(prefix + '/') ? g.slice(prefix.length + 1) : null) : g);
     const args = ['log', `-n${GIT_MAX_COMMITS}`, '--no-renames', '--name-status', '--format=%x1e%H%x1f%cI%x1f%s%x1f%B'];
+    // A minute's slack: work committed together with the plan's first version counts.
+    // A day past a finished plan's last change: closing commits land after the move to completed/.
     if (since) args.push(`--since=${new Date(since - 60_000).toISOString()}`);
     if (until) args.push(`--until=${new Date(until + 86_400_000).toISOString()}`);
     const commits = parseGitLog((await git(repo, [...args, '--', '.'])) ?? '');
@@ -569,6 +575,12 @@ async function build(p: Project, sessions: Session[]): Promise<ReaderData> {
   for (const n of namedSet) if (!files.has(n)) files.set(n, { path: n, named: true, exists: exists(n), changed: false, via: [] });
   data.files = [...files.values()].slice(0, 120);
   return data;
+}
+
+/** What /api/reader and /api/answer accept: a file under a project root or registered repo that belongs to a known plan or spec. */
+export function knownPlanFile(file: string, projects: Project[], under: (f: string) => boolean): Project | undefined {
+  const f = path.resolve(file);
+  return under(f) ? projectFor(projects, f) : undefined;
 }
 
 /** The project a doc belongs to: its main file, or any file in its spec folder. */

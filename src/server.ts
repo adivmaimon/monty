@@ -20,7 +20,7 @@ import type { MontyState } from './types.js';
 import { isUnderKnown, scopeState, type MontyStore } from './state.js';
 import { summarise, swiftbarText } from './bar.js';
 import { renderMonocle, type Badge } from './icon.js';
-import { projectFor, readerData } from './reader.js';
+import { knownPlanFile, readerData } from './reader.js';
 import { answerRoute } from './answers.js';
 
 const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'web');
@@ -130,16 +130,13 @@ function route(url: URL, req: http.IncomingMessage, res: http.ServerResponse, cf
     case '/api/reader': {
       const file = path.resolve(url.searchParams.get('file') ?? '');
       const st = store.state();
-      const p = isUnderKnown(file, cfg.projectRoots, store.repos()) ? projectFor(st.projects, file) : undefined;
+      const p = knownPlanFile(file, st.projects, (f) => isUnderKnown(f, cfg.projectRoots, store.repos()));
       if (!p) return json(res, null);
       return void readerData(p, st.sessions).then((d) => json(res, d), () => json(res, null));
     }
     case '/api/answer':
       // The only write: a known plan's file under a project root, checked again in answers.ts.
-      return answerRoute(req, res, cfg.port, (file) => {
-        const f = path.resolve(file);
-        return isUnderKnown(f, cfg.projectRoots, store.repos()) && !!projectFor(store.state().projects, f);
-      });
+      return answerRoute(req, res, cfg.port, (file) => !!knownPlanFile(file, store.state().projects, (f) => isUnderKnown(f, cfg.projectRoots, store.repos())));
     default:
       return serveStatic(url.pathname, res);
   }

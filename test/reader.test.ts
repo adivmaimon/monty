@@ -9,9 +9,20 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { matchPhaseCommits, namedPaths, openQuestions, parseGitLog, parseGitStatus, phaseDetails, readerData, riskLevel } from '../src/reader.js';
+import { knownPlanFile, matchPhaseCommits, namedPaths, openQuestions, parseGitLog, parseGitStatus, phaseDetails, readerData, riskLevel } from '../src/reader.js';
 import { answerQuestion, applyAnswer, refuseRequest, undoAnswer } from '../src/answers.js';
 import type { Project } from '../src/types.js';
+import { isUnderKnown } from '../src/state.js';
+
+test('only a known plan under a project root may be read for the reader or answered', () => {
+  const p = { file: '/p/Garden/.caddis/projects/active/project-x.md', docs: ['/p/Garden/specs/1/design.md'] } as Project;
+  const under = (f: string) => isUnderKnown(f, ['/p'], []);
+  assert.equal(knownPlanFile('/p/Garden/.caddis/projects/active/project-x.md', [p], under), p);
+  assert.equal(knownPlanFile('/p/Garden/specs/1/design.md', [p], under), p);
+  assert.equal(knownPlanFile('/p/Garden/README.md', [p], under), undefined);
+  assert.equal(knownPlanFile('/p/Garden/../../etc/x.md', [p], under), undefined);
+  assert.equal(knownPlanFile(p.file, [p], () => false), undefined);
+});
 
 const FIX = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'test', 'fixtures');
 const read = (rel: string) => fs.readFileSync(path.join(FIX, rel), 'utf8');
