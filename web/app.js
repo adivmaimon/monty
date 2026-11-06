@@ -120,7 +120,7 @@
   /** A "Roadmap" link for a repo, only when it has two cards or more (a view with nothing to show is hidden). */
   function roadmapIn(repo, id) {
     if (!repo || !state || !RM.worth(state.projects.filter((p) => p.repo === repo))) return '';
-    return `<a href="#" class="rm-in" data-roadmap="${esc(repo)}" data-sel="${esc(id || '')}">Roadmap</a>`;
+    return `<a href="#" class="rdm-in" data-roadmap="${esc(repo)}" data-sel="${esc(id || '')}">Roadmap</a>`;
   }
   function showRoadmap() {
     if (!state) return;

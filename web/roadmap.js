@@ -258,7 +258,7 @@
     const n = basis === 'status' ? 1 : Math.min(Math.max(total, 1), 12);
     const on = basis === 'status' ? (p.status === 'completed' ? 1 : 0) : total <= 12 ? done : Math.round((done / total) * n);
     const cur = c.col === 1 ? on : -1;
-    return `<span class="rm-bars">${Array.from({ length: n }, (_, i) => `<span class="${i < on ? 'on' : i === cur ? 'cur' : ''}"></span>`).join('')}</span>`;
+    return `<span class="rdm-bars">${Array.from({ length: n }, (_, i) => `<span class="${i < on ? 'on' : i === cur ? 'cur' : ''}"></span>`).join('')}</span>`;
   }
 
   function fmtDate(d) {
@@ -290,41 +290,41 @@
     const lit = sel ? chain(sel, cards) : null;
     const name = (id) => (byId.get(id) ? byId.get(id).p.name : id);
 
-    const head = `<div class="rm-bar">
+    const head = `<div class="rdm-bar">
       ${opts.back ? '<a href="#" class="btn" data-rm-back>Back</a>' : ''}
-      <span class="rm-repo">${esc(opts.repo || '')}</span>
+      <span class="rdm-repo">${esc(opts.repo || '')}</span>
       <span class="muted">${cards.length} plan${cards.length === 1 ? '' : 's'}</span>
       <span class="spacer"></span>
       ${opts.repos && opts.repos.length > 1 ? `<label class="filter">Repo <select data-rm-repo>${opts.repos.map((r) => `<option ${r === opts.repo ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></label>` : ''}
     </div>`;
 
-    if (!cards.length) return paint(el, head + '<div class="rm-empty muted">No plans in this repo to put on a roadmap.</div>');
+    if (!cards.length) return paint(el, head + '<div class="rdm-empty muted">No plans in this repo to put on a roadmap.</div>');
 
-    const loopNote = L.cycles.length ? `<div class="rm-note">${L.cycles.map((g) => `${g.map((id) => esc(name(id))).join(', ')} depend on each other in a loop`).join('; ')}. The loop is drawn in rose; one of its Depends on lines is probably wrong.</div>` : '';
+    const loopNote = L.cycles.length ? `<div class="rdm-note">${L.cycles.map((g) => `${g.map((id) => esc(name(id))).join(', ')} depend on each other in a loop`).join('; ')}. The loop is drawn in rose; one of its Depends on lines is probably wrong.</div>` : '';
 
     const path = (pts) => 'M' + pts.map(([x, y]) => `${x} ${y}`).join(' L');
     const isLit = (e) => !lit || (lit.has(e.from) && lit.has(e.to));
     // Lit lines go last so they draw over the dim ones.
     const edges = [...L.edges].sort((a, b) => isLit(a) - isLit(b));
-    const svg = `<svg class="rm-lines" width="${L.width}" height="${L.height}" aria-hidden="true">
-      <defs><marker id="rm-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z"/></marker></defs>
+    const svg = `<svg class="rdm-lines" width="${L.width}" height="${L.height}" aria-hidden="true">
+      <defs><marker id="rdm-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z"/></marker></defs>
       ${edges.map((e) => `<path d="${path(e.points)}" class="${e.cycle ? 'cycle' : ''} ${sel && isLit(e) ? 'lit' : ''} ${lit && !isLit(e) ? 'dim' : ''}" ${e.back || e.cycle ? 'marker-end="url(#rm-arrow)"' : ''}/>`).join('')}
     </svg>`;
-    const labels = L.cols.map((c) => `<div class="rm-col" style="left:${c.x}px">${c.label}</div>`).join('');
+    const labels = L.cols.map((c) => `<div class="rdm-col" style="left:${c.x}px">${c.label}</div>`).join('');
     const cardsHtml = cards.map((c) => {
       const n = L.nodes.get(c.id);
-      const q = c.col !== 0 && c.p.questions ? `<span class="rm-q" title="${c.p.questions} open question${c.p.questions > 1 ? 's' : ''}"></span>` : '';
-      const cls = ['rm-card', 'c' + c.col, c.parked ? 'parked' : '', c.id === sel ? 'sel' : '', lit && !lit.has(c.id) ? 'dim' : ''].filter(Boolean).join(' ');
+      const q = c.col !== 0 && c.p.questions ? `<span class="rdm-q" title="${c.p.questions} open question${c.p.questions > 1 ? 's' : ''}"></span>` : '';
+      const cls = ['rdm-card', 'c' + c.col, c.parked ? 'parked' : '', c.id === sel ? 'sel' : '', lit && !lit.has(c.id) ? 'dim' : ''].filter(Boolean).join(' ');
       return `<button class="${cls}" data-card="${esc(c.id)}" aria-pressed="${c.id === sel}" style="left:${n.x}px;top:${n.y}px" title="${esc(c.p.name)}">
-        <span class="rm-t"><span class="clamp1">${esc(c.p.name)}</span>${q}</span>
+        <span class="rdm-t"><span class="clamp1">${esc(c.p.name)}</span>${q}</span>
         ${bars(c)}
-        <span class="rm-sub">${esc(subline(c, byId))}</span>
+        <span class="rdm-sub">${esc(subline(c, byId))}</span>
       </button>`;
     }).join('');
 
-    paint(el, `${head}<div class="rm-body">
-      <div class="rm-main">${loopNote}<div class="rm-scroll"><div class="rm-board" style="width:${L.width}px;height:${L.height}px">${labels}${svg}${cardsHtml}</div></div></div>
-      <aside class="rm-side">${side(sel && byId.get(sel), cards, byId, L)}</aside>
+    paint(el, `${head}<div class="rdm-body">
+      <div class="rdm-main">${loopNote}<div class="rdm-scroll"><div class="rdm-board" style="width:${L.width}px;height:${L.height}px">${labels}${svg}${cardsHtml}</div></div></div>
+      <aside class="rdm-side">${side(sel && byId.get(sel), cards, byId, L)}</aside>
     </div>`);
   }
 
@@ -332,7 +332,7 @@
   // the board where it was scrolled to.
   function paint(el, html) {
     if (el._rmHtml === html) return;
-    const keep = [...el.querySelectorAll('.rm-scroll, .rm-body')].map((x) => [x.className, x.scrollLeft, x.scrollTop]);
+    const keep = [...el.querySelectorAll('.rdm-scroll, .rdm-body')].map((x) => [x.className, x.scrollLeft, x.scrollTop]);
     el.innerHTML = html;
     el._rmHtml = html;
     for (const [cls, l, t] of keep) {
@@ -347,17 +347,17 @@
     const p = c.p;
     const status = c.parked ? 'parked' : STATUS_CHIP[c.col];
     const q = c.col !== 0 && p.questions ? ` · ${p.questions} question${p.questions > 1 ? 's' : ''}` : '';
-    const list = (ids) => ids.map((id) => `<button class="rm-link" data-pick="${esc(id)}"><span class="clamp1">${esc(byId.get(id).p.name)}</span><span class="muted">${esc(subline(byId.get(id), byId))}</span></button>`).join('');
+    const list = (ids) => ids.map((id) => `<button class="rdm-link" data-pick="${esc(id)}"><span class="clamp1">${esc(byId.get(id).p.name)}</span><span class="muted">${esc(subline(byId.get(id), byId))}</span></button>`).join('');
     const needs = c.deps;
     const unblocks = cards.filter((x) => x.deps.includes(c.id)).map((x) => x.id);
     const loop = L.cycles.find((g) => g.includes(c.id));
-    return `<span class="rm-chip s-${status}">${status}${q}</span>
-      <h2 class="rm-title">${esc(p.name)}</h2>
-      ${p.goal ? `<p class="rm-goal">${esc(p.goal)}</p>` : ''}
-      ${loop ? `<p class="rm-loopnote">In a loop with ${loop.filter((id) => id !== c.id).map((id) => esc(byId.get(id).p.name)).join(', ')}.</p>` : ''}
-      ${needs.length ? `<div class="rm-list"><h3>Needs</h3>${list(needs)}</div>` : ''}
-      ${unblocks.length ? `<div class="rm-list"><h3>Unblocks</h3>${list(unblocks)}</div>` : ''}
-      <a href="#" class="rm-open" data-doc="${esc(p.file)}">Open plan</a>`;
+    return `<span class="rdm-chip s-${status}">${status}${q}</span>
+      <h2 class="rdm-title">${esc(p.name)}</h2>
+      ${p.goal ? `<p class="rdm-goal">${esc(p.goal)}</p>` : ''}
+      ${loop ? `<p class="rdm-loopnote">In a loop with ${loop.filter((id) => id !== c.id).map((id) => esc(byId.get(id).p.name)).join(', ')}.</p>` : ''}
+      ${needs.length ? `<div class="rdm-list"><h3>Needs</h3>${list(needs)}</div>` : ''}
+      ${unblocks.length ? `<div class="rdm-list"><h3>Unblocks</h3>${list(unblocks)}</div>` : ''}
+      <a href="#" class="rdm-open" data-doc="${esc(p.file)}">Open plan</a>`;
   }
 
   function again() {
