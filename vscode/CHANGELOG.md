@@ -4,6 +4,7 @@
 
 - Plans per file: the details view maps the repo's folders, each file shaded by how many plans changed it in the last 30 or 90 days or ever. Click a file for those plans, newest first. Plans are matched to commits by Caddis's `Caddis-Plan:` line, by commits that changed the plan itself, or, marked as a guess, by the dates in the plan and the files it names.
 - The active plan in the editor: the explorer marks the files it changed (●), the ones it names but hasn't touched yet (○) and changes outside what it names (◆); a line at the top of a file names the plan changing it and how many earlier plans did, and lists them on click; the status bar shows the plan and its phase.
+- `monty.planBlame` (off by default): plan names above each block of code on screen, from git blame.
 
 ## 0.5.1
 
