@@ -1,0 +1,28 @@
+/* "Changed since last look" marks in the readable view (web/reader-changes.js). Orchid
+   marks what moved, mint what is new, as in the design mock. */
+.chgbar{display:flex;align-items:center;gap:2px;flex:0 0 auto;background:var(--orchid-soft);border-radius:8px;padding:3px 4px 3px 12px}
+.chgbar[hidden]{display:none}
+.chgbar .chg-n{font-size:12.5px;color:var(--orchid);font-weight:600;margin-right:6px;white-space:nowrap}
+.chgbar .chg-step{display:inline-flex;align-items:center;background:transparent;border:0;color:var(--orchid);padding:4px 8px;border-radius:5px;cursor:pointer}
+.chgbar .chg-step:hover{background:var(--orchid-soft)}
+.chgbar .chg-seen{background:var(--line);border:0;color:var(--text);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;white-space:nowrap}
+.chgbar .chg-seen:hover{background:var(--card)}
+
+/* The gutter mark: a bar down the left edge of a changed section or header. */
+.sec.chg{border-left:3px solid var(--orchid)}
+.hero.chg{border-left:3px solid var(--orchid);padding-left:14px}
+.chg-cur{outline:1px solid var(--orchid);outline-offset:3px}
+
+.chg-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--orchid);margin-left:8px;vertical-align:middle;flex:0 0 auto}
+.chg-tag{font-size:12px;font-weight:500;color:var(--orchid)}
+.chg-tag del,.chg-level del,.chg-removed del{color:var(--muted)}
+.chg-just{font-size:12px;font-weight:500;color:var(--orchid);margin-left:8px;white-space:nowrap}
+
+.chg-level{display:flex;gap:8px;align-items:center;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin:4px 0 10px;color:var(--muted)}
+.chg-level .chg-k{font-weight:600;letter-spacing:.08em;font-size:11px}
+.chg-level .chg-to{color:var(--orchid)}
+
+.chg-add{background:var(--ok-soft);border-radius:3px;color:var(--text)}
+tr.chg-add td{background:var(--ok-soft)}
+
+.chg-removed{font-size:13px;color:var(--muted);padding:10px 16px;border:1px dashed var(--line);border-left:3px solid var(--orchid);border-radius:10px}

@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="blocks.css">
 <link rel="stylesheet" href="footprint.css">
+<link rel="stylesheet" href="reader-changes.css">
 </head>
 <body>
 <!-- In VS Code the extension serves this same page into a webview and sets window.MONTY. -->
@@ -36,6 +37,7 @@
     <a href="#" id="back" class="btn">Back</a>
     <span id="docPath" class="mono muted clamp1"></span>
     <span class="spacer"></span>
+    <div id="docChanges" class="chgbar" hidden></div>
     <div class="seg" role="group" aria-label="View">
       <button id="viewNice" aria-pressed="true">Readable</button>
       <button id="viewRaw" aria-pressed="false">Raw</button>
@@ -52,6 +54,7 @@
 <script src="md.js"></script>
 <script src="footprint.js"></script>
 <script src="blast.js"></script>
+<script src="reader-changes.js"></script>
 <script src="app.js"></script>
 <script src="reader-hover.js"></script>
 </body>

@@ -11,6 +11,8 @@ import { execFile, spawn } from 'node:child_process';
 import { changedLineRange, hunkRanges } from './diff';
 import { findApp, installMenuBarApp, offerMenuBarApp } from './install';
 import { ReadableByDefault } from './readable';
+import { webviewPage } from './page';
+import { SeenStore } from './seen';
 
 interface Session {
   id: string;
@@ -148,6 +150,8 @@ const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'build', '.build', 'o
 const SKIP_FILES = /(\.log|\.pyc|\.lock|-lock\.json|\.lockb|\.DS_Store|\.map)$/;
 
 let workspaceState: vscode.Memento | undefined;
+// Specs as last seen in the readable view, for its "changed since last look" marks.
+let seen: SeenStore | undefined;
 let highlight: vscode.TextEditorDecorationType | undefined;
 let workingUntil = 0;
 const snapshots = new Map<string, string>(); // abs path -> last text seen, to diff the next change against
@@ -314,20 +318,9 @@ function html(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
   const webDir = vscode.Uri.joinPath(extUri, 'media', 'web');
   const nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   const uri = (f: string) => webview.asWebviewUri(vscode.Uri.joinPath(webDir, f)).toString();
-  let page = fs.readFileSync(vscode.Uri.joinPath(webDir, 'index.html').fsPath, 'utf8');
-  page = page
-    .replace(/<link rel="icon"[^>]*>/, '')
-    // Every stylesheet and script in web/index.html, so a new web file needs no change here.
-    // The CSP only runs scripts carrying the nonce; app.js gets window.MONTY just before it.
-    .replace(/<link rel="stylesheet" href="([\w./-]+)">/g, (_, f: string) => `<link rel="stylesheet" href="${uri(f)}">`)
-    .replace(/<script src="([\w./-]+)"><\/script>/g, (_, f: string) =>
-      (f === 'app.js' ? `<script nonce="${nonce}">window.MONTY = ${JSON.stringify({ ...config, nonce, mermaidSrc: uri('vendor/mermaid.min.js') }).replace(/</g, '\\u003c')};</script>` : '') +
-      `<script nonce="${nonce}" src="${uri(f)}"></script>`)
-    .replace(
-      '<meta charset="utf-8">',
-      `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} data:; font-src ${webview.cspSource};">`,
-    );
-  return page;
+  const page = fs.readFileSync(vscode.Uri.joinPath(webDir, 'index.html').fsPath, 'utf8');
+  const csp = `default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} data:; font-src ${webview.cspSource};`;
+  return webviewPage(page, uri, nonce, { ...config, nonce, mermaidSrc: uri('vendor/mermaid.min.js') }, csp);
 }
 
 /** Core routes a webview may ask for through the extension. */
@@ -373,6 +366,8 @@ function wire(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
       }
       post(webview, { type: 'api', id: m.id, body });
     }
+    if (m.type === 'getSeen' && typeof m.file === 'string') post(webview, { type: 'seen', id: m.id, text: seen?.get(m.file) ?? null });
+    if (m.type === 'setSeen' && typeof m.file === 'string' && typeof m.text === 'string') seen?.set(m.file, m.text);
     if (m.type === 'getDoc' && typeof m.file === 'string') {
       let text = `Could not open ${m.file}`;
       // Markdown, and AI tool rule files that are markdown under another name (same list as the core's /api/doc).
@@ -596,6 +591,7 @@ export function activate(context: vscode.ExtensionContext) {
   const extUri = context.extensionUri;
   extensionRoot = context.extensionPath;
   workspaceState = context.workspaceState;
+  seen = new SeenStore(path.join(context.globalStorageUri.fsPath, 'seen'));
   startMenuBarApp();
   if (cfg().menuBar) void offerMenuBarApp(context, cfg().appPath);
   const touched = new TouchedFiles();

@@ -8,6 +8,10 @@
   const $ = (id) => document.getElementById(id);
   const cfg = window.MONTY || {};
   const vscode = cfg.host && typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
+  // "Changed since last look" (reader-changes.js): its snapshots go through the extension in VS Code.
+  const changes = window.MontyChanges;
+  if (changes) changes.init({ post: vscode ? (m) => vscode.postMessage(m) : null });
+  const markChanges = () => changes && changes.apply({ file: docFile, md: docMd, raw: rawView });
   const params = new URLSearchParams(location.search);
   const scope = cfg.repo || params.get('repo') || '';
   // summary: the VS Code sidebar, the minimum. full: the editor tab / browser, everything.
@@ -574,6 +578,7 @@
       $('doc').innerHTML = `<div class="raw">${esc(docMd)}</div>`;
       $('docSide').innerHTML = '';
       $('docTop').innerHTML = '';
+      markChanges();
       return;
     }
     // "**Status**: x" style lines above the first section become chips, not a block of text.
@@ -661,6 +666,7 @@
       const d = $('doc').querySelector(`details.sec[data-i="${a.dataset.sec}"]`);
       if (d) { d.open = true; d.scrollIntoView({ behavior: 'smooth' }); }
     }));
+    markChanges();
   }
 
   // ---------- mermaid ----------

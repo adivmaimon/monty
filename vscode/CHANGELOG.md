@@ -6,6 +6,7 @@
 - Hover a file reference in a plan to see the lines it points at, or a link to another plan to see its status, goal and progress. Works from the keyboard too.
 - Footprint: a plan or spec's readable view shows where its work lands in the repo. Files it names that changed, files it names still untouched, and files changed outside it, drawn as area boxes; click a file to see its phase and open it. Changes come from git since the spec was created and from live sessions working on it.
 - Blast radius: in a repo with a Caddis map, an open plan's header has a button showing what its changes reach: the files it edits that something imports, their importers with hubs marked, reach by area, and importers no test reaches. Repos without the map look as before.
+- Specs show what changed since you last read them: a bar beside each changed section, a dot in the section list, new text highlighted, old status and risk struck through, and "done just now" on phases finished since. Step through with previous and next; Mark seen clears them. The last-seen copy stays in Monty's own storage, never in your repo.
 
 ## 0.5.1
 
