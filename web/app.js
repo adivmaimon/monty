@@ -4,7 +4,7 @@
 //     and passes state in via postMessage. Files then open as real editor tabs.
 // Scoped to one repo, it shows only that repo's sessions and plans.
 (function () {
-  const { esc, render, inline: mdInline } = window.MontyMD;
+  const { esc } = window.MontyMD;
   const $ = (id) => document.getElementById(id);
   const cfg = window.MONTY || {};
   const vscode = cfg.host && typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
@@ -21,7 +21,6 @@
   const open = { activity: false, files: false, completed: false, skills: false };
   // Open/closed choices the user made. The page re-renders on every live update, so
   // without these a closed card would snap back to its default.
-  const secOpen = new Map(); // plan section index -> open
   const groupOpen = new Map(); // plan group label -> open
   // Lines clicked open stay open across live re-renders.
   const X = new Set();
@@ -548,104 +547,41 @@
     $('docPath').textContent = file.split('/').slice(-3).join('/');
     $('docPath').title = file;
     docMd = await fetchDoc(file);
-    secOpen.clear();
+    lastDocHtml = '';
     renderDoc();
   }
 
+  // Brief and Full come from reader-modes.js; Raw is the file as written.
+  let lastDocHtml = '';
   function renderDoc() {
     // A spec framework splits one change across files (proposal, design, tasks): any of them
     // shows the change's header and progress.
     const p = state && (state.projects.find((x) => x.file === docFile) || state.projects.find((x) => x.docs && x.docs.includes(docFile)));
-    $('viewNice').setAttribute('aria-pressed', String(!rawView));
-    $('viewRaw').setAttribute('aria-pressed', String(rawView));
+    const R = window.MontyReader;
+    const mode = rawView ? 'raw' : R.modeFor(!!p);
+    $('reader').dataset.mode = mode;
+    $('viewBrief').hidden = !p;
+    $('viewBrief').setAttribute('aria-pressed', String(mode === 'brief'));
+    $('viewNice').setAttribute('aria-pressed', String(mode === 'full'));
+    $('viewRaw').setAttribute('aria-pressed', String(mode === 'raw'));
     if (rawView) {
+      lastDocHtml = '';
       $('doc').innerHTML = `<div class="raw">${esc(docMd)}</div>`;
       $('docSide').innerHTML = '';
       $('docTop').innerHTML = '';
       return;
     }
-    // "**Status**: x" style lines above the first section become chips, not a block of text.
-    const meta = [];
-    let seenH2 = false;
-    // Skills, commands, agents and Cursor rules open with YAML frontmatter: its name is the
-    // title, its description the line under it, any other keys are chips.
-    const { data: fm, body: text } = frontmatter(docMd);
-    // Only short "**Key**: value" pairs, colon required: "**Medium - accuracy...**" is a sentence,
-    // and its prose must stay in the body. "**Date**: x | **Status**: y" is several chips.
-    const META = /^\*\*([^*]{1,24}?):?\*\*\s*:?\s*(.{1,120})$/;
-    const body = text.split('\n').filter((l) => {
-      if (/^#{2,3}\s/.test(l)) seenH2 = true;
-      if (seenH2) return true;
-      const parts = l.trim().split(/\s+\|\s+/);
-      const pairs = parts.map((x) => /^\*\*[^*]+(:\*\*|\*\*\s*:)/.test(x) && META.exec(x)).filter(Boolean);
-      if (!pairs.length || pairs.length !== parts.length) return true;
-      for (const m of pairs) meta.push([m[1].replace(/:$/, ''), m[2].replace(/\*\*/g, '')]);
-      return false;
-    }).join('\n');
-    const repoPath = p ? p.repoPath : docFile.replace(/\/\.claude\/.*$|\/openspec\/.*$|\/specs\/.*$|\/\.kiro\/.*$/, '');
-    const refs = new Set();
-    const md = render(body, { repoPath, refs, docDir: docFile.replace(/\/[^/]*$/, '') });
-    // The goal is already in the header, unless the header only has its start: then the
-    // section stays, so the rest can be read.
-    const goalSec = md.sections.find((s) => /^goal$/i.test(s.title.trim()));
-    const goalWhole = goalSec && p && p.goal && !p.goal.endsWith('…') && (goalSec.html.match(/<(p|ul|ol|table|pre)\b/g) || []).length <= 1;
-    if (goalWhole) md.sections = md.sections.filter((s) => s !== goalSec);
-    const goal = (p && p.goal) || fm.description || '';
-    for (const [k, v] of Object.entries(fm)) if (k !== 'name' && k !== 'description' && k !== 'title' && v) meta.push([k, v]);
-    // Progress is said once: the phase list when there is one (current phase ringed),
-    // otherwise a task count with the bar.
-    const cur = p ? p.phases.find((ph) => !ph.done) : null;
-    const phases = p && p.phases.length ? `<div class="phaselist">${p.phases.map((ph) => {
-      const style = ph.done ? 'background:var(--accent-strong);border-color:var(--accent-strong);color:#fff' : ph === cur && p.status === 'active' ? 'border:2px solid var(--accent)' : '';
-      return `<div class="${ph === cur ? 'cur' : ''}"><span class="dot" style="${style}">${ph.done ? '✓' : ''}</span><span class="clamp1">Phase ${ph.n}${ph.title ? ' · ' + esc(ph.title) : ''}</span></div>`;
-    }).join('')}</div>` : '';
-    const tasks = p && !p.phases.length && p.progress.basis === 'tasks' ? `<div class="ctx"><span>${esc(progressLabel(p))}</span></div>${segs(p)}` : '';
-    const statusTag = p ? `<span class="tag st-${p.status === 'completed' ? 'done' : p.status === 'active' ? 'working' : 'idle'}">${esc(p.status)}</span>` : '';
-    // Facts the header already shows (status, phase count) are not repeated as chips.
-    const chips = meta.filter(([k]) => !/^(status|phases?|type)$/i.test(k.trim()));
-    const slug = /^[a-z0-9]+(-[a-z0-9]+)+$/;
-    const title = md.title && !slug.test(md.title) ? md.title : (p && p.name) || fm.name || fm.title || md.title || nameFromPath(docFile);
-    // Three cards: status + progress (full width, sticks to the top on scroll),
-    // headline + info, and phases or tasks at the top of the right column.
-    const bar = p && p.progress.basis !== 'status' ? segs(p) : '';
-    // The plan's own Status sentence ("Waiting: Phase 1 missed the threshold...") says more than
-    // the tag; a bare word that only repeats the tag is left out.
-    const statusNote = p && p.statusText && !/^(active|pending|in progress|complete[d]?|done|planned|draft|parked|cancell?ed)\.?$/i.test(p.statusText.trim()) ? p.statusText : '';
-    const statusCard = p ? `<div class="statuscard">
-      ${statusTag}
-      <span class="sb-title clamp1">${esc(title)}</span>
-      ${bar ? `<div class="sb-bar">${bar}</div>` : ''}
-    </div>` : '';
-    const hero = `<section class="hero lead">
-      ${p ? `<div class="eyebrow">${p.source === 'claude-projects' ? 'Plan' : esc(p.source)}</div>` : docKind(docFile) ? `<div class="eyebrow">${docKind(docFile)}</div>` : ''}
-      <h1>${esc(title)}</h1>
-      ${statusNote ? `<p class="statusnote">${mdInline(statusNote, { repoPath })}</p>` : ''}
-      ${goal ? `<p class="goal clamp3 ${xp('goal')}">${mdInline(goal, { repoPath })}</p>` : ''}
-      ${chips.length ? `<div class="chips">${chips.map(([k, v]) => `<span>${esc(k)}: ${esc(v.replace(/`/g, ''))}</span>`).join('')}</div>` : ''}
-    </section>`;
-    const progressCard = phases || tasks ? `<div class="side lead"><h2>${phases ? 'Phases' : 'Tasks'}</h2>${phases}${tasks}</div>` : '';
-    $('docTop').innerHTML = statusCard;
-    // Sections start collapsed except the first, so the page reads as an outline.
-    const secs = md.sections.map((s, i) => {
-      const isOpen = secOpen.has(i) ? secOpen.get(i) : i === 0;
-      const words = s.html.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
-      return `<details class="sec" data-i="${i}" ${isOpen ? 'open' : ''}><summary><span>${mdInline(s.title, {})}</span><span class="hint">${words >= 600 ? `${Math.round(words / 200)} min read` : ''}</span></summary><div class="in">${s.html}</div></details>`;
-    }).join('');
-    const pre = md.preamble.replace(/<p>\s*<\/p>/g, '').trim();
-    $('doc').innerHTML = hero + (pre ? `<section class="sec"><div class="in" style="padding-top:12px">${pre}</div></section>` : '') + secs;
-    $('doc').querySelectorAll('details.sec').forEach((d) => (d.ontoggle = () => secOpen.set(Number(d.dataset.i), d.open)));
+    const out = R.render({ md: docMd, file: docFile, project: p, state, mode, frontmatter, nameFromPath, docKind });
+    // Live state arrives every second or so; redrawing the same page would reset what the
+    // reader has open and where the caret is.
+    const html = out.doc + '\u0000' + out.side;
+    if (html === lastDocHtml) return;
+    lastDocHtml = html;
+    $('docTop').innerHTML = '';
+    $('doc').innerHTML = out.doc;
+    $('docSide').innerHTML = out.side;
     renderMermaid($('doc'));
-    const refList = [...refs].slice(0, 30);
-    const others = p && p.docs ? p.docs.filter((f) => f !== docFile) : [];
-    const inChange = others.length ? `<div class="side"><h2>In this ${p.source === 'openspec' ? 'change' : 'spec'}</h2>${others.map((f) => `<a class="mono" href="#" data-doc="${esc(f)}" title="${esc(f)}">${esc(f.slice(p.file.replace(/\/[^/]*$/, '').length + 1))}</a>`).join('')}</div>` : '';
-    $('docSide').innerHTML = `${progressCard}${inChange}
-      ${md.sections.length > 1 ? `<div class="side"><h2>Sections</h2>${md.sections.map((s, i) => `<a href="#" data-sec="${i}">${esc(s.title.replace(/[`*]|__/g, ''))}</a>`).join('')}</div>` : ''}
-      ${refList.length ? `<div class="side"><h2>Files mentioned</h2>${refList.map((r) => { const [f, l] = r.split(':'); return `<a class="mono" href="#" data-open="${esc(repoPath + '/' + f)}" data-line="${l ? l.split(/[,-]/)[0] : ''}" title="${esc(r)}">${esc(base(f))}${l ? ':' + esc(l.split(/[,-]/)[0]) : ''}</a>`; }).join('')}</div>` : ''}`;
-    $('docSide').querySelectorAll('[data-sec]').forEach((a) => (a.onclick = (e) => {
-      e.preventDefault();
-      const d = $('doc').querySelector(`details.sec[data-i="${a.dataset.sec}"]`);
-      if (d) { d.open = true; d.scrollIntoView({ behavior: 'smooth' }); }
-    }));
+    R.wire($('readerbody'));
   }
 
   // ---------- mermaid ----------
@@ -740,7 +676,9 @@
   rb.addEventListener('scroll', dock, { passive: true });
   window.addEventListener('resize', dock);
 
-  $('viewNice').onclick = () => { rawView = false; renderDoc(); };
+  window.MontyReader.init({ vscode, mode: cfg.readerMode, rerender: () => { lastDocHtml = ''; renderDoc(); }, reload: () => (vscode && cfg.mode === 'doc' ? renderDoc() : showDoc(docFile)) });
+  $('viewBrief').onclick = () => { rawView = false; window.MontyReader.setMode('brief'); renderDoc(); };
+  $('viewNice').onclick = () => { rawView = false; window.MontyReader.setMode('full'); renderDoc(); };
   $('viewRaw').onclick = () => {
     if (vscode && cfg.mode === 'doc') return vscode.postMessage({ type: 'editAsText', file: docFile });
     rawView = true;

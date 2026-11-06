@@ -38,6 +38,12 @@ test('checkbox items still render as checkboxes', () => {
   assert.match(html, /<li class="cb">⬜/);
 });
 
+test('GitHub callouts become tinted boxes; plain quotes stay quotes', () => {
+  const html = render('> [!WARNING]\n> Reverse the migration first.\n\n> just a quote');
+  assert.match(html, /^<div class="callout callout-warning" role="note"><div class="callout-t">warning<\/div><p>Reverse the migration first\.<\/p><\/div><blockquote><p>just a quote<\/p><\/blockquote>$/);
+  assert.match(render('> [!note] Inline text'), /callout-note[\s\S]*<p>Inline text<\/p>/);
+});
+
 test('a table row with no separator under it renders as text instead of hanging', () => {
   assert.match(render('## 4. Tools\n\n| Tool | What it does |'), /<p>\| Tool \| What it does \|<\/p>/);
   assert.match(render('| a | b |\nplain'), /<p>\| a \| b \| plain<\/p>|<p>\| a \| b \|/);

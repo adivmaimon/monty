@@ -1,6 +1,6 @@
 # Photo upload
 
-**Status:** In progress - Phase 1 done (2026-10-01)
+**Status:** Phase 1 done (2026-10-01)
 
 ## Goal
 

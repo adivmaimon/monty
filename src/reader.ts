@@ -197,7 +197,9 @@ export function openQuestions(text: string): ReaderQuestion[] {
     const parts = questionParts(it.first);
     const rest = own.filter((l) => l !== decided).join('\n');
     const q: ReaderQuestion = { index: out.length, text: parts.text, start: it.start, end, form: it.form, indent: it.indent };
-    if (parts.detail) q.detail = parts.detail;
+    // The default shows as the answer button, so the detail stops where the plan states it.
+    const detail = parts.detail?.replace(/\s*\(?\b(?:recommended\s+)?(?:default|recommend(?:ed|ation)?)\s*(?:answer)?\s*[:：].*$/i, '').trim();
+    if (detail) q.detail = detail;
     const def = defaultIn(rest);
     if (def) q.default = def;
     if (decided) {

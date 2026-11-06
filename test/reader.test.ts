@@ -44,7 +44,8 @@ test('open questions: bullets with defaults, a recommendation, an answered one',
   assert.equal(qs[0]?.default, 'Yes');
   assert.equal(qs[1]?.text, 'Refresh lifetime when "remember me" is off?');
   assert.equal(qs[1]?.default, '24 hours');
-  assert.match(qs[1]?.detail ?? '', /30 days/);
+  assert.equal(qs[1]?.detail, 'The plan uses 30 days everywhere.');
+  assert.equal(qs[0]?.detail, undefined);
   assert.equal(qs[2]?.default, undefined);
   assert.equal(qs[2]?.answer?.text, 'Postgres, beside sessions');
   assert.equal(qs[2]?.answer?.undoable, true);

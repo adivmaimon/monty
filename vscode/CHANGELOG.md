@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Plans and specs open in Brief: title, status, risk, goal, a phase stepper with dates, the current phase's gate or checklist, open questions and which of the plan's files have changed.
+- Full shows the whole document with a table of contents that follows your scroll. Changes draw as a file tree, Phases as a stepper, Tests as rows, and "None" or "Skipped" sections fold into one line.
+- Answer a plan's open question with one click (its default, or your own words): Monty writes a dated decision under it, and Undo takes it out again. This is the only time Monty writes to a file, and only when you click.
+- GitHub callouts (`> [!NOTE]`, `> [!WARNING]` and the rest) render as tinted boxes.
+- The reader remembers whether you last chose Brief or Full.
+
 ## 0.5.1
 
 - Adding Caddis as an option.
