@@ -6,6 +6,7 @@
 //   GET /api/swiftbar     ready-made SwiftBar plugin output
 //   GET /api/icon.png     the monocle (?pct=0.5&badge=attention), for testing
 //   GET /api/doc?file=    raw markdown, only for files under a project root
+//   GET /api/excerpt?file=&line=   a few lines of a source file under a project root (hover previews)
 //   POST /api/intent?repo=&doc=   ask the VS Code window for that repo to show Monty (or a plan)
 //   GET  /api/intent?repo=        that window collects it (each intent is delivered once)
 
@@ -18,6 +19,7 @@ import type { MontyState } from './types.js';
 import { isUnderKnown, scopeState, type MontyStore } from './state.js';
 import { summarise, swiftbarText } from './bar.js';
 import { renderMonocle, type Badge } from './icon.js';
+import { readExcerpt } from './excerpt.js';
 
 const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'web');
 
@@ -122,6 +124,12 @@ function route(url: URL, req: http.IncomingMessage, res: http.ServerResponse, cf
       }
       res.writeHead(200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'no-store' });
       return void res.end(fs.readFileSync(file, 'utf8'));
+    }
+    case '/api/excerpt': {
+      // Path rules (roots, symlinks, secrets, binaries) live in excerpt.ts.
+      const ex = readExcerpt(url.searchParams.get('file') ?? '', Number(url.searchParams.get('line')) || undefined, [...cfg.projectRoots, ...store.repos()]);
+      res.writeHead(ex.status === 'refused' ? 403 : 200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      return void res.end(JSON.stringify(ex));
     }
     default:
       return serveStatic(url.pathname, res);
