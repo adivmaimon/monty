@@ -146,6 +146,10 @@ export interface Project {
   updatedAt: string;
   /** What the files this open spec edits reach through the import graph. Only with a Caddis map (src/blast.ts). */
   blast?: BlastRadius;
+  /** Ids of specs in the same repo this one needs, from its Depends on / Requires / Blocked by lines (src/deps.ts). */
+  dependsOn?: string[];
+  /** Open questions still unanswered: bullets under Open Questions, Spec Kit NEEDS CLARIFICATION markers. */
+  questions?: number;
 }
 
 /**

@@ -10,6 +10,7 @@
 - Plans per file: the details view maps the repo's folders, each file shaded by how many plans changed it in the last 30 or 90 days or ever. Click a file for those plans, newest first. Plans are matched to commits by Caddis's `Caddis-Plan:` line, by commits that changed the plan itself, or, marked as a guess, by the dates in the plan and the files it names.
 - The active plan in the editor: the explorer marks the files it changed (●), the ones it names but hasn't touched yet (○) and changes outside what it names (◆); a line at the top of a file names the plan changing it and how many earlier plans did, and lists them on click; the status bar shows the plan and its phase.
 - `monty.planBlame` (off by default): plan names above each block of code on screen, from git blame.
+- Roadmap: every plan in a repo as a card in Done, Active and Next, with lines for what depends on what (from `Depends on`, `Requires` or `Blocked by` lines that link or name another spec). Click a card to light up what it needs and unblocks. Loops are drawn and called out. Opens from the Plans card and a plan's header, in its own tab in VS Code.
 
 ## 0.5.1
 

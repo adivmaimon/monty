@@ -352,6 +352,7 @@ function wire(webview: vscode.Webview, extUri: vscode.Uri, config: Record<string
     if (m.type === 'openDoc' && typeof m.file === 'string') openReadable(extUri, m.file);
     if (m.type === 'openDetails') openDetails(extUri);
     if (m.type === 'getHistory' && typeof m.repo === 'string') post(webview, { type: 'history', id: m.id, history: await fetchHistory(cfg().port, m.repo) });
+    if (m.type === 'openRoadmap') openRoadmap(extUri, typeof m.select === 'string' ? m.select : '');
     if (m.type === 'setFollow') setFollow(!!m.on);
     if (m.type === 'editAsText' && typeof m.file === 'string') {
       readable?.keepAsText(vscode.Uri.file(m.file));
@@ -479,6 +480,26 @@ function openDetails(extUri: vscode.Uri) {
     // Forget the panel first: anything below that throws must not leave a dead panel
     // behind for the next "Open details" to reveal ("Webview is disposed").
     if (detailsPanel === panel) detailsPanel = undefined;
+    webviews.delete(webview);
+    sub.dispose();
+  });
+}
+
+/** The roadmap: one tab per window with every plan in this repo and how they depend on each other. */
+let roadmapPanel: vscode.WebviewPanel | undefined;
+function openRoadmap(extUri: vscode.Uri, select: string) {
+  if (roadmapPanel) {
+    if (select) post(roadmapPanel.webview, { type: 'roadmapSelect', id: select });
+    return roadmapPanel.reveal();
+  }
+  const repo = repoRoot();
+  const panel = vscode.window.createWebviewPanel('monty.roadmap', `Roadmap · ${repo ? path.basename(repo) : 'all'}`, vscode.ViewColumn.Active, { enableScripts: true, retainContextWhenHidden: true });
+  panel.iconPath = tabIcon(extUri);
+  const webview = panel.webview;
+  const sub = wire(webview, extUri, { host: true, mode: 'roadmap', repo, select });
+  roadmapPanel = panel;
+  panel.onDidDispose(() => {
+    if (roadmapPanel === panel) roadmapPanel = undefined;
     webviews.delete(webview);
     sub.dispose();
   });

@@ -14,6 +14,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Phase, Project, ProjectSource, ProjectStatus } from './types.js';
+import { linkSpecs } from './deps.js';
 
 const BUCKETS: Record<string, ProjectStatus> = {
   active: 'active',
@@ -48,12 +49,13 @@ export function scanProjects(roots: string[]): Project[] {
 }
 
 export function scanRepo(repoPath: string): Project[] {
-  return [
+  // linkSpecs: how the specs depend on each other, for the roadmap (src/deps.ts).
+  return linkSpecs([
     ...scanClaudeProjects(repoPath),
     ...scanOpenSpec(repoPath),
     ...scanCheckboxSpecs(repoPath, 'specs', 'spec-kit'),
     ...scanCheckboxSpecs(repoPath, path.join('.kiro', 'specs'), 'kiro'),
-  ].map((p) => ({ ...p, label: p.label ?? progressLabel(p.status, p.phases, p.progress) }));
+  ].map((p) => ({ ...p, label: p.label ?? progressLabel(p.status, p.phases, p.progress) })));
 }
 
 function readDir(p: string): fs.Dirent[] {

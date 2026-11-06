@@ -109,6 +109,32 @@
   function openDetails() {
     if (vscode) vscode.postMessage({ type: 'openDetails' });
   }
+  // ---------- roadmap (web/roadmap.js) ----------
+  // Browser: #roadmap=<repo>&sel=<id>. VS Code: its own tab (mode 'roadmap').
+  const RM = window.MontyRoadmap;
+  let rmRepo = '';
+  let rmSel = cfg.select || '';
+  function openRoadmap(repo, id) {
+    if (vscode) return vscode.postMessage({ type: 'openRoadmap', select: id || '' });
+    location.hash = '#roadmap=' + encodeURIComponent(repo) + (id ? '&sel=' + encodeURIComponent(id) : '');
+  }
+  /** A "Roadmap" link for a repo, only when it has two cards or more (a view with nothing to show is hidden). */
+  function roadmapIn(repo, id) {
+    if (!repo || !state || !RM.worth(state.projects.filter((p) => p.repo === repo))) return '';
+    return `<a href="#" class="rm-in" data-roadmap="${esc(repo)}" data-sel="${esc(id || '')}">Roadmap</a>`;
+  }
+  function showRoadmap() {
+    if (!state) return;
+    const repos = [...new Set(state.projects.map((p) => p.repo))].sort();
+    const want = rmRepo || (scope ? base(scope) : '');
+    const repo = repos.includes(want) ? want : repos[0] || want;
+    $('roadmap').hidden = false;
+    RM.render($('roadmap'), state.projects.filter((p) => p.repo === repo), {
+      repo, select: rmSel, repos: vscode || scope ? [] : repos, back: !vscode,
+      onBack: () => (history.length > 1 ? history.back() : (location.hash = '')),
+      onRepo: (r) => (location.hash = '#roadmap=' + encodeURIComponent(r)),
+    });
+  }
   const pendingDocs = new Map();
   function fetchDoc(file) {
     if (!vscode) return fetch('/api/doc?file=' + encodeURIComponent(file)).then((r) => (r.ok ? r.text() : `I couldn't find ${file}, I'm afraid.`));
@@ -142,6 +168,12 @@
     if (d) {
       e.preventDefault();
       openDoc(d.dataset.doc);
+      return;
+    }
+    const rm = e.target.closest('[data-roadmap]');
+    if (rm) {
+      e.preventDefault();
+      openRoadmap(rm.dataset.roadmap, rm.dataset.sel);
       return;
     }
     if (e.target.closest('[data-details]')) {
@@ -373,7 +405,8 @@
         ${(opened ? items : items.slice(0, 1)).map(planRow).join('')}</div>`;
     };
     const html = group('Active', active, true) + group('Pending', pending, active.length < 3) + group('Parked', parked, false) + group('Recently done', finished, false);
-    $('plans').innerHTML = projects.length ? `<div class="box"><h2>Plans</h2><div class="board">${html}</div></div>` : (scope ? '' : '<div class="empty">No plans about. How restful.</div>');
+    const rmFor = scope ? base(scope) : pick || (new Set(projects.map((p) => p.repo)).size === 1 ? projects[0].repo : '');
+    $('plans').innerHTML = projects.length ? `<div class="box"><h2>Plans${roadmapIn(rmFor)}</h2><div class="board">${html}</div></div>` : (scope ? '' : '<div class="empty">No plans about. How restful.</div>');
     $('plans').querySelectorAll('[data-group]').forEach((b) => (b.onclick = () => {
       groupOpen.set(b.dataset.group, b.getAttribute('aria-expanded') !== 'true');
       renderPlans();
@@ -516,13 +549,15 @@
       : `<div class="empty">No session in ${esc(base(scope || 'this repo'))} at present. I shall keep an eye out.</div>`) + scriptedNote();
     $('extra').innerHTML = '';
     $('footer').innerHTML = `${vscode ? `<div class="box followcard">${followToggle()}</div>` : ''}<button class="btn wide" data-details>Open details</button>`;
-    $('plans').innerHTML = plans.length ? `<div class="box lead"><h2>Plans</h2>${plans.map(planRow).join('')}
+    $('plans').innerHTML = plans.length ? `<div class="box lead"><h2>Plans${roadmapIn(plans[0].repo)}</h2>${plans.map(planRow).join('')}
       ${state.projects.length > plans.length ? `<a href="#" class="more" data-details>All ${state.projects.length} plans</a>` : ''}</div>` : '';
   }
 
   function renderAll() {
     if (!state) return;
     if (cfg.mode === 'doc') return;
+    if (cfg.mode === 'roadmap') return showRoadmap();
+    if (!$('roadmap').hidden) showRoadmap();
     if (!scope) {
       const repos = [...new Set(state.projects.map((p) => p.repo))].sort();
       const sel = $('repoFilter');
@@ -637,7 +672,7 @@
       ${bar ? `<div class="sb-bar">${bar}</div>` : ''}
     </div>` : '';
     const hero = `<section class="hero lead">
-      ${p ? `<div class="eyebrow">${p.source === 'claude-projects' ? 'Plan' : esc(p.source)}</div>` : docKind(docFile) ? `<div class="eyebrow">${docKind(docFile)}</div>` : ''}
+      ${p ? `<div class="eyebrow">${p.source === 'claude-projects' ? 'Plan' : esc(p.source)}${roadmapIn(p.repo, p.id)}</div>` : docKind(docFile) ? `<div class="eyebrow">${docKind(docFile)}</div>` : ''}
       <h1>${esc(title)}</h1>
       ${statusNote ? `<p class="statusnote">${mdInline(statusNote, { repoPath })}</p>` : ''}
       ${goal ? `<p class="goal clamp3 ${xp('goal')}">${mdInline(goal, { repoPath })}</p>` : ''}
@@ -776,8 +811,18 @@
 
   function route() {
     const h = location.hash;
-    if (h.startsWith('#doc=')) return showDoc(decodeURIComponent(h.slice(5)));
+    if (h.startsWith('#doc=')) {
+      $('roadmap').hidden = true;
+      return showDoc(decodeURIComponent(h.slice(5)));
+    }
     $('reader').hidden = true;
+    if (h.startsWith('#roadmap=')) {
+      const q = new URLSearchParams(h.slice(1));
+      rmRepo = q.get('roadmap') || '';
+      rmSel = q.get('sel') || '';
+      return showRoadmap();
+    }
+    $('roadmap').hidden = true;
   }
 
   // ---------- data ----------
@@ -802,6 +847,7 @@
       if (m.type === 'api' && pendingDocs.has(m.id)) { pendingDocs.get(m.id)(m.body); pendingDocs.delete(m.id); }
       // The plan changed on disk or in an editor (Claude ticking a phase): re-render live.
       if (m.type === 'docText' && cfg.mode === 'doc') { docMd = m.text; renderDoc(); }
+      if (m.type === 'roadmapSelect') { rmSel = m.id || ''; RM.select(rmSel); }
       if (m.type === 'follow') { follow = !!m.on; renderAll(); }
       if (m.type === 'history' && window.MontyHistory) window.MontyHistory.onMessage(m);
       if (m.type === 'offline') $('detail').innerHTML = `<div class="empty">${esc(m.message)}</div>`;
