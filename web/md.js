@@ -1,7 +1,8 @@
 // Small markdown renderer for plan and spec files. Covers what the plans actually
 // use: headings, paragraphs, lists with checkboxes, tables, code, quotes, bold,
 // italics, links. File references in code spans (`app/(tabs)/scan.tsx:41,79-91`)
-// become vscode:// links into the repo. Mermaid blocks are drawn by app.js.
+// become vscode:// links into the repo. Mermaid blocks are drawn by app.js, chart and
+// flow blocks by blocks.js.
 (function () {
   const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const FILE_REF = /^([\w@.\-()[\]~+]+\/)*[\w@.\-()[\]+]+\.[a-zA-Z0-9]{1,6}(:\d+([,-]\d+)*)?$/;
@@ -98,7 +99,9 @@
         i++;
         while (i < lines.length && !/^\s*```/.test(lines[i])) body.push(lines[i++]);
         i++;
-        blocks.push({ html: `<pre data-lang="${esc(lang)}"><code>${esc(body.join('\n'))}</code></pre>` });
+        // ```chart and ```flow are drawn by blocks.js; it returns null for any other language.
+        const typed = window.MontyBlocks && window.MontyBlocks.render(lang, body.join('\n'));
+        blocks.push({ html: typed || `<pre data-lang="${esc(lang)}"><code>${esc(body.join('\n'))}</code></pre>` });
         continue;
       }
       const h = /^(#{1,6})\s+(.*)$/.exec(l);
