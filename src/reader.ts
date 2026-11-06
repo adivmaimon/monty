@@ -587,5 +587,7 @@ export function knownPlanFile(file: string, projects: Project[], under: (f: stri
 
 /** The project a doc belongs to: its main file, or any file in its spec folder. */
 export function projectFor(projects: Project[], file: string): Project | undefined {
-  return projects.find((x) => x.file === file) ?? projects.find((x) => x.docs?.includes(file));
+  // Resolved: with a relative MONTY_PROJECTS the scan keeps relative paths.
+  const f = path.resolve(file);
+  return projects.find((x) => path.resolve(x.file) === f) ?? projects.find((x) => x.docs?.some((d) => path.resolve(d) === f));
 }
