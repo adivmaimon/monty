@@ -131,12 +131,15 @@ test('a plan in a git repo: changed, planned, outside, own file excluded', { ski
     write(root, 'README.md', 'r\n');
     commit(root, 'base', '2026-01-01T10:00:00Z');
     const plan = 'plans/project-refresh.md';
-    write(root, plan, ['# Refresh tokens', '**Status**: In progress', '## Changes', '- `auth/session.ts`', '### Phase 1 - Routes', '- src/routes/logout.ts', '- src/auth/revoke.ts (new)', '- `dist/out.js`'].join('\n'));
+    write(root, plan, ['# Refresh tokens', '**Status**: In progress', '## Changes', '- `auth/session.ts`', '### Phase 1 - Routes', '- src/routes/logout.ts', '- src/auth/revoke.ts (new)', '- `dist/out.js`', '## Context', '- `src/config/env.ts` is only cited here'].join('\n'));
     commit(root, 'plan', '2026-01-02T10:00:00Z');
     write(root, 'src/auth/session.ts', 'a2\n');
     write(root, 'src/config/env.ts', 'c2\n');
     commit(root, 'work', '2026-01-03T10:00:00Z');
     write(root, 'src/new.ts', 'untracked\n');
+    // Untracked notes that predate the plan are not its work.
+    write(root, 'notes/old.md', 'n\n');
+    fs.utimesSync(path.join(root, 'notes/old.md'), new Date('2026-01-01T00:00:00Z'), new Date('2026-01-01T00:00:00Z'));
     const project = { file: path.join(root, plan), repoPath: root, name: 'Refresh tokens', source: 'caddis', status: 'active' } as unknown as Project;
     const fp = await computeFootprint(project, []);
     const all = new Map(fp.areas.flatMap((a) => a.marked).map((f) => [f.path, f]));
@@ -154,6 +157,8 @@ test('a plan in a git repo: changed, planned, outside, own file excluded', { ski
     assert.ok(!all.has(plan), 'the plan itself is not work');
     assert.ok(!all.has('dist/out.js'), 'ignored output is not planned');
     assert.ok(!all.has('README.md'), 'changed before the plan');
+    assert.ok(!all.has('notes/old.md'), 'untracked but older than the plan');
+    // Cited only in Context: not planned work, so its change counts as outside.
     assert.deepEqual(fp.counts, { named: 3, namedChanged: 1, outside: 2 });
 
     // Finished: the window ends at the plan's last commit, and the working tree is not counted.

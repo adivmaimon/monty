@@ -345,6 +345,14 @@ export async function repoFiles(repo: string): Promise<{ files: string[]; git: b
  * Files changed in a window: commits (with --relative, so paths are under the repo folder)
  * and, for open work, the working tree (uncommitted and untracked). Empty without git.
  */
+function modifiedBefore(file: string, since: string): boolean {
+  try {
+    return fs.statSync(file).mtimeMs < Date.parse(since);
+  } catch {
+    return false;
+  }
+}
+
 export async function changedSince(repo: string, since: string | undefined, opts: { until?: string; worktree?: boolean } = {}): Promise<Map<string, { added?: boolean; via: FootprintFile['via'] }>> {
   const out = new Map<string, { added?: boolean; via: FootprintFile['via'] }>();
   const note = (p: string, via: 'git' | 'worktree', added: boolean) => {
@@ -375,7 +383,11 @@ export async function changedSince(repo: string, since: string | undefined, opts
       const full = e.slice(3);
       if (/[RC]/.test(xy)) i++; // the next entry is the old name
       if (xy.includes('D') || !full.startsWith(prefix)) continue;
-      note(full.slice(prefix.length), 'worktree', xy === '??' || xy.includes('A'));
+      const rel = full.slice(prefix.length);
+      // Uncommitted work last touched before the spec was written is not the spec's: an
+      // untracked folder of notes that predates it, say. Unreadable files are kept.
+      if (since && modifiedBefore(path.join(repo, rel), since)) continue;
+      note(rel, 'worktree', xy === '??' || xy.includes('A'));
     }
   }
   return out;
@@ -487,6 +499,11 @@ export async function computeFootprint(project: Project, sessions: Session[]): P
     }
   }
   let named = new Map([...refs].map(([p, w]) => [p, { where: [...w].filter((x) => x !== '\u0000exists'), exists: w.has('\u0000exists') }] as const));
+  // A plan with a Changes section lists its work there and under its phases; paths only in
+  // other sections (context, briefs it cites, reference files) are reading, not work, and
+  // would inflate "planned files".
+  const listed = [...named].filter(([, n]) => n.where.some((w) => /^(changes|phase \d+)$/i.test(w)));
+  if (listed.some(([, n]) => n.where.some((w) => /^changes$/i.test(w)))) named = new Map(listed);
   // A named path git ignores (build output, a log) is not work still to do.
   const missing = [...named].filter(([, n]) => !n.exists).map(([p]) => p);
   if (inGit && missing.length) {
