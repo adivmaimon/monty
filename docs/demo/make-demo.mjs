@@ -44,10 +44,25 @@ write('.claude/settings.json', JSON.stringify({ permissions: { deny: ['Bash(git 
 write('.claude/projects/active/project-refresh-tokens.md', `# Refresh tokens for login
 
 **Status**: In progress
+**Depends on:** project-api-keys
 
 ## Goal
 
 Sessions expire after 15 minutes and log people out mid-task. A 30-day refresh token lets the client renew silently.
+
+## Risk
+
+**Medium.** The auth middleware runs on every request; each phase ships behind \`AUTH_REFRESH\`.
+
+## Changes
+
+| File | Change |
+|---|---|
+| \`src/auth/session.ts\` | \`refreshToken\` on the session, and \`rotateRefresh()\` that revokes the old token as it issues a new one. |
+| \`src/routes/login.ts\` | \`POST /refresh\`. |
+| \`src/auth/revoke.ts\` (new) | Revoke every token in a family when an old one is reused. |
+| \`web/src/renew.ts\` (new) | The client renews a minute before expiry. |
+| \`tests/auth.test.ts\` | Rotation, reuse and expiry. |
 
 ## Flow
 
@@ -76,10 +91,38 @@ Old tokens stop working after one use.
 ### Phase 4 - Client renewal
 
 The web client renews before expiry.
+
+## Open Questions
+
+- Should revoke-all also end the current session? Default: Yes
+- Refresh lifetime when "remember me" is off? **Recommended:** 24 hours.
+- Which store holds the token families?
+  - Decided: Postgres, beside sessions (owner, 2026-10-19)
+`);
+write('.claude/projects/completed/project-api-keys.md', `# API keys for integrations
+
+**Status**: Complete (2026-10-12)
+
+## Goal
+
+Integrations sign in with a scoped API key instead of a user's password.
+
+## Phases
+
+### Phase 1 - Keys table - DONE (2026-10-09)
+
+### Phase 2 - Scopes - DONE (2026-10-11)
+
+### Phase 3 - Rotate and revoke - DONE (2026-10-12)
 `);
 write('.claude/projects/pending/project-rate-limits.md', `# Rate limits per API key
 
 **Status**: Pending
+**Depends on:** project-refresh-tokens
+
+## Goal
+
+Each API key gets its own request budget, so one noisy integration can't slow everyone down.
 
 ## Phases
 
@@ -89,7 +132,22 @@ write('.claude/projects/pending/project-rate-limits.md', `# Rate limits per API 
 
 ### Phase 3 - Dashboard
 `);
-for (const f of ['src/auth/session.ts', 'src/routes/login.ts', 'tests/auth.test.ts']) write(f, '// demo\n');
+const files = ['src/auth/session.ts', 'src/routes/login.ts', 'tests/auth.test.ts', 'src/app.ts', 'src/middleware/auth.ts', 'src/routes/account.ts', 'src/routes/keys.ts', 'src/db/sessions.ts', 'src/db/keys.ts', 'tests/keys.test.ts', 'web/src/client.ts', 'web/src/login.tsx'];
+for (const f of files) write(f, '// demo\n');
+// A small Caddis import map, so the blast radius has something to reach through.
+const imports = {
+  'src/app.ts': ['src/routes/login.ts', 'src/routes/account.ts', 'src/routes/keys.ts', 'src/middleware/auth.ts'],
+  'src/middleware/auth.ts': ['src/auth/session.ts'],
+  'src/routes/login.ts': ['src/auth/session.ts'],
+  'src/routes/account.ts': ['src/auth/session.ts', 'src/middleware/auth.ts'],
+  'src/routes/keys.ts': ['src/db/keys.ts', 'src/middleware/auth.ts'],
+  'src/auth/session.ts': ['src/db/sessions.ts'],
+  'tests/auth.test.ts': ['src/routes/login.ts'],
+  'tests/keys.test.ts': ['src/routes/keys.ts'],
+  'web/src/login.tsx': ['web/src/client.ts'],
+};
+const graph = { commit: 'a1b2c3d', version: 1, files: Object.fromEntries(files.map((f) => [f, { area: f.split('/').slice(0, -1).join('/'), imports: imports[f] || [], lang: f.endsWith('x') ? 'tsx' : 'ts', lines: 40, packages: [] }])) };
+write('.caddis/map/graph.json', JSON.stringify(graph, null, 2));
 
 // The session: a few minutes of work on Phase 3, ending mid-edit.
 const now = Date.now();

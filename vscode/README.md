@@ -30,10 +30,37 @@ Monty watches sessions from Claude Code, Codex CLI, opencode, Cline, Roo Code an
     <th colspan="2">Markdown in human format</th>
   </tr>
   <tr>
-    <td colspan="2">Any markdown file opens as a page you can actually read: phases with progress, collapsible sections, diagrams, and file references that open in the editor.</td>
+    <td colspan="2">Any markdown file opens as a page you can actually read. A plan opens in Brief: status, risk, goal, where it sits on the roadmap, how far its files have changed, a phase stepper and its open questions, which you can answer with one click. Full shows the whole document; Raw, the source.</td>
   </tr>
   <tr>
-    <td colspan="2" align="center"><img alt="A plan in the readable view" src="https://raw.githubusercontent.com/adivmaimon/monty/main/docs/screenshots/plan.png"></td>
+    <td colspan="2" align="center"><img alt="A plan in Brief: headline, footprint, roadmap and blast radius tiles, phases and open questions" src="https://raw.githubusercontent.com/adivmaimon/monty/main/docs/screenshots/plan.png"></td>
+  </tr>
+  <tr>
+    <th colspan="2">Roadmap</th>
+  </tr>
+  <tr>
+    <td colspan="2">Every plan in the repo in Done, Active and Next, with a line to the plans each one waits on. Click one to light up what it needs and what it unblocks.</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img alt="The roadmap: three plans in Done, Active and Next, linked by what they depend on" src="https://raw.githubusercontent.com/adivmaimon/monty/main/docs/screenshots/roadmap.png"></td>
+  </tr>
+  <tr>
+    <th colspan="2">Footprint map</th>
+  </tr>
+  <tr>
+    <td colspan="2">Where a plan's work lands in the repo: the files it lists, which have changed, and changes it never mentions.</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img alt="The footprint map: the repo's folders as boxes, the plan's files marked changed or not yet" src="https://raw.githubusercontent.com/adivmaimon/monty/main/docs/screenshots/footprint.png"></td>
+  </tr>
+  <tr>
+    <th colspan="2">Blast radius map</th>
+  </tr>
+  <tr>
+    <td colspan="2">Before a plan is built, what else its changes can affect through the files that import them, and which of those no test covers. Needs a <a href="https://github.com/adivmaimon/caddis">Caddis</a> import map; without one it stays out of the way.</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img alt="The blast radius map: files the plan edits, the files that import them, reach by folder, and importers no test covers" src="https://raw.githubusercontent.com/adivmaimon/monty/main/docs/screenshots/blast.png"></td>
   </tr>
 </table>
 
@@ -41,7 +68,12 @@ Monty watches sessions from Claude Code, Codex CLI, opencode, Cline, Roo Code an
 
 - **A sidebar for the open repo.** The session's state (at work, needs you, your move, all done), the plan it's working through as a progress bar, what it's doing right now, context used, and whether the last test run passed.
 - **A details view** with the lot: activity, files changed, every plan in the repo, and the repo's AI setup (instructions files, the rules in them, skills, commands, guardrails).
-- **Plans you can read.** Every `.md` opens in a readable view (search results and Go to Line still open the text at the line): collapsible sections, phases with progress, Mermaid diagrams, and file references that open in the editor. It updates live as the agent ticks off phases.
+- **Plans you can read.** Every `.md` opens in a readable view (search results and Go to Line still open the text at the line). Plans open in Brief, the page that says what matters now; Full has the whole document with a table of contents; Raw is the source. Mermaid diagrams, `chart` and `flow` blocks, and GitHub callouts are drawn, and it updates live as the agent ticks off phases.
+- **What changed since you last looked.** When an agent edits a plan, the sections it changed are marked the next time you open it, until you mark them seen.
+- **Answer open questions in one click.** Take the plan's suggested answer or write your own; Monty writes it under the question with the date, and Undo takes it out.
+- **Hover a file reference** in a plan to see the lines it points at, or a link to another plan to see its status and progress.
+- **Maps for a plan.** The Roadmap shows how the repo's plans depend on each other. The Footprint map shows where a plan's work lands and what changed outside it. The Blast radius map shows what else its changes can affect, for repos with a [Caddis](https://github.com/adivmaimon/caddis) import map.
+- **Plans in the editor.** The explorer marks the active plan's files: changed (●), not yet (○), changed outside the plan (◆). A line at the top of a file names the plan changing it and earlier plans that did, and the status bar shows the plan and its phase. The details view maps which plans changed which files.
 - **Follow mode** (off until you turn it on). Each file the agent changes opens beside your editor with the new lines highlighted for a moment.
 - **Explorer dots** on files the session changed (●) or read (·).
 - **A Mac menu bar app** (optional). The monocle's rim fills as the plan progresses, a dot appears when a session needs you, and a notification says so too. Monty offers to install it the first time you open VS Code on a Mac.
@@ -65,13 +97,13 @@ Monty reads two things on your machine: your agents' session records (the folder
 
 The one network request Monty ever makes is downloading the menu bar app from this repo's GitHub Releases, and only when you click Install. It checks Apple's signature on the download before installing it.
 
-Monty never writes to your repos or to any agent's folders.
+Monty never writes to any agent's folders, and writes to your repo only when you answer a plan's open question: one dated line under it, which Undo removes. Its own caches (which plans changed which files, what you last read) live in Monty's storage, never in your repo.
 
 ## How progress works
 
 When the agent keeps a task list (Claude Code's todos, Codex's plan, Cline's focus chain, Roo's todo list), that is the progress bar. Otherwise progress comes from your plans. Monty reads plan files in:
 
-- `.claude/projects/{active,completed,parked,cancelled}/*.md`, using `### Phase N` headings and ` - DONE (date)` markers
+- [Caddis](https://github.com/adivmaimon/caddis) (`.caddis/projects/`), and `.claude/projects/{active,completed,parked,cancelled}/*.md`, using `### Phase N` headings and ` - DONE (date)` markers
 - [OpenSpec](https://github.com/Fission-AI/OpenSpec) (`openspec/changes/*/tasks.md`)
 - [Spec Kit](https://github.com/github/spec-kit) (`specs/*/tasks.md`)
 - [Kiro](https://kiro.dev) (`.kiro/specs/*/tasks.md`)
@@ -83,6 +115,7 @@ When the agent keeps a task list (Claude Code's todos, Codex's plan, Cline's foc
 | `monty.projectRoots` | `[]` | Folders whose repos are always watched, e.g. `~/Projects`. Empty: just the repos open in VS Code. |
 | `monty.appPath` | `/Applications/Monty.app` | The menu bar app to start with VS Code. Empty never starts it. |
 | `monty.port` | `4747` | Port of the local server. |
+| `monty.planBlame` | `false` | Name the plan above each block of code on screen, from git blame. |
 | `monty.readableMarkdown` | `true` | Open `.md` files in the readable view. Opens that land on a line (a search result, Go to Line) stay as text so you can edit there. |
 
 Commands: **Monty: Open details**, **Monty: Toggle follow mode**, **Open readable view** (on any `.md`).

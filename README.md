@@ -32,10 +32,37 @@ Monty watches sessions from Claude Code, Codex CLI, opencode, Cline, Roo Code an
     <th colspan="2">Markdown in human format</th>
   </tr>
   <tr>
-    <td colspan="2">Any markdown file opens as a page you can actually read: phases with progress, collapsible sections, diagrams, and file references that open in the editor.</td>
+    <td colspan="2">Any markdown file opens as a page you can actually read. A plan opens in Brief: status, risk, goal, where it sits on the roadmap, how far its files have changed, a phase stepper and its open questions, which you can answer with one click. Full shows the whole document; Raw, the source.</td>
   </tr>
   <tr>
-    <td colspan="2" align="center"><img alt="A plan in the readable view" src="docs/screenshots/plan.png"></td>
+    <td colspan="2" align="center"><img alt="A plan in Brief: headline, footprint, roadmap and blast radius tiles, phases and open questions" src="docs/screenshots/plan.png"></td>
+  </tr>
+  <tr>
+    <th colspan="2">Roadmap</th>
+  </tr>
+  <tr>
+    <td colspan="2">Every plan in the repo in Done, Active and Next, with a line to the plans each one waits on. Click one to light up what it needs and what it unblocks.</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img alt="The roadmap: three plans in Done, Active and Next, linked by what they depend on" src="docs/screenshots/roadmap.png"></td>
+  </tr>
+  <tr>
+    <th colspan="2">Footprint map</th>
+  </tr>
+  <tr>
+    <td colspan="2">Where a plan's work lands in the repo: the files it lists, which have changed, and changes it never mentions.</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img alt="The footprint map: the repo's folders as boxes, the plan's files marked changed or not yet" src="docs/screenshots/footprint.png"></td>
+  </tr>
+  <tr>
+    <th colspan="2">Blast radius map</th>
+  </tr>
+  <tr>
+    <td colspan="2">Before a plan is built, what else its changes can affect through the files that import them, and which of those no test covers. Needs a <a href="https://github.com/adivmaimon/caddis">Caddis</a> import map; without one it stays out of the way.</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img alt="The blast radius map: files the plan edits, the files that import them, reach by folder, and importers no test covers" src="docs/screenshots/blast.png"></td>
   </tr>
 </table>
 
@@ -71,12 +98,12 @@ menubar/MontyApp/build.sh   # local menu bar build (ad-hoc signed)
 
 To try it without your own sessions, `node docs/demo/make-demo.mjs /tmp/monty-demo` builds two fictional repos with a Claude Code and a Codex session; the script's header says how to point the core at it.
 
-Settings for the core come from environment variables: `MONTY_PORT` (4747), `MONTY_PROJECTS` (folders whose repos are all scanned; by default only repos open in VS Code), `MONTY_CLAUDE_PROJECTS` (session log folder), `MONTY_LIVE_HOURS` (3), `MONTY_CONTEXT_WINDOW` (200000), `MONTY_AGENTS` (which agents to read; default all), and `MONTY_CODEX_DIR`, `MONTY_OPENCODE_DIR`, `MONTY_CLINE_DIR`, `MONTY_EDITOR_DIRS` to point at non-standard folders.
+Settings for the core come from environment variables: `MONTY_PORT` (4747), `MONTY_PROJECTS` (folders whose repos are all scanned; by default only repos open in VS Code), `MONTY_CLAUDE_PROJECTS` (session log folder), `MONTY_LIVE_HOURS` (3), `MONTY_CONTEXT_WINDOW` (200000), `MONTY_CACHE_DIR` (plan history cache; default the OS cache folder), `MONTY_AGENTS` (which agents to read; default all), and `MONTY_CODEX_DIR`, `MONTY_OPENCODE_DIR`, `MONTY_CLINE_DIR`, `MONTY_EDITOR_DIRS` to point at non-standard folders.
 
 ## Principles
 
 - **Local only.** The core binds 127.0.0.1 and never sends session content anywhere. Session logs contain code, prompts and secrets.
-- **Read-only.** Monty never writes to `~/.claude` or to your repos. The one exception is installing the menu bar app when you click Install.
+- **Read-only.** Monty never writes to `~/.claude` or to your repos. The exceptions are things you click: answering a plan's open question writes one dated line under it (Undo takes it out), and Install installs the menu bar app. Its own caches (plan history, what you last read) live in Monty's storage, not your repo.
 - **Degrade, don't crash.** No agent publishes its log format. Readers are built from each tool's source, unknown lines are skipped, and a reader that fails is switched off without taking the others with it.
 - **Guesses say so.** "Probably awaiting your permission" is a timing guess and reads as one.
 - **Mind the manners.** Monty speaks as a monocled butler: dry, brief, never in the way of the facts. Status tags stay plain; the voice lives in the lines around them.
