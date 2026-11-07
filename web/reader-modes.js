@@ -393,8 +393,8 @@
   function renderBrief(c) {
     const phases = phaseList(c);
     const doneN = phases.filter((ph) => ph.state === 'done').length;
-    const STEP_TIP = { done: 'Done: its gate passed.', cur: 'Current: the phase being worked on now.', todo: 'Not started yet.' };
-    const stepper = phases.length ? `<section class="rm-phases"><div class="rm-phases-h"><span class="lbl">Phases</span><span class="muted rm-count" tabindex="0" data-tip="From the phase headings: a phase is done when its heading is marked DONE.">${doneN} of ${phases.length} done</span></div>
+    const STEP_TIP = { done: 'Done.', cur: 'Current: the phase being worked on now.', todo: 'Not started yet.' };
+    const stepper = phases.length ? `<section class="rm-phases"><div class="rm-phases-h"><span class="lbl">Phases</span><span class="muted rm-count" tabindex="0" data-tip="From the ${c.project && SOURCE[c.project.source] ? 'spec' : 'plan'}'s phases: one is done when its heading is marked done or every task under it is ticked.">${doneN} of ${phases.length} done</span></div>
       <div class="rm-steps">${phases.map((ph) => `
       <div class="rm-step ${ph.state}">
         <div class="rm-rail"><span tabindex="0" data-tip="Phase ${ph.n}. ${STEP_TIP[ph.state] || ''}">${ICON[ph.state]}</span><span class="rm-line"></span></div>

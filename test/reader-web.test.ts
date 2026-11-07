@@ -92,8 +92,9 @@ test('Brief on a Caddis plan: status, risk, stepper with dates, questions, files
   assert.match(out.doc, /data-rm-answer="Yes"/);
   assert.match(out.doc, /data-rm-answer="24 hours"/);
   assert.match(out.doc, /Answered: Postgres, beside sessions/);
-  assert.match(out.doc, /1 of 2 planned files changed\./);
-  assert.match(out.doc, /1 changed outside the plan:/);
+  // Files changed are the Footprint tile's job (web/footprint.js), not Brief's.
+  assert.doesNotMatch(out.doc, /planned files changed/);
+  assert.match(out.doc, /class="lbl">Phases<\/span>[\s\S]*2 of 4 done/);
   assert.equal(out.side, '');
 });
 
@@ -142,7 +143,6 @@ test('Brief and Full on a Spec Kit tasks.md: phases with checklist counts, task 
   assert.match(b.doc, /\d+ of 8 tasks/);
   assert.match(b.doc, /rm-step done[\s\S]*Setup \(Shared Infrastructure\)[\s\S]*2 of 2/);
   assert.match(b.doc, /rm-step cur[\s\S]*T005 Add the tag input/);
-  assert.match(b.doc, /1 of 2 named files changed/);
   assert.doesNotMatch(b.doc, /Open questions/);
   const f = render('full', md, p.file, p, data);
   assert.equal(f.mode, 'full');
