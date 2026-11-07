@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
 
 - Specs can draw small charts and flows: write YAML in a `chart` or `flow` fenced block (GitHub shows it as plain YAML) and the readable view draws bars or steps. A block Monty can't read shows its source with one line saying why.
 - Hover a file reference in a plan to see the lines it points at, or a link to another plan to see its status, goal and progress. Works from the keyboard too.
