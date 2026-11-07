@@ -1,11 +1,5 @@
 /* The roadmap view (roadmap.js). Colours are style.css's variables; layout from mocks/roadmap.dc.html. */
-.roadmap{position:fixed;inset:0;background:var(--bg);z-index:9;display:flex;flex-direction:column;overflow:hidden}
-.roadmap[hidden]{display:none}
-body:has(.roadmap:not([hidden])){overflow:hidden}
 body.vscode.mode-roadmap{--bg:var(--vscode-editor-background,#121017)}
-.rdm-bar{display:flex;align-items:baseline;gap:12px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line);min-width:0}
-.rdm-bar .btn{align-self:center}
-.rdm-repo{font-size:17px;font-weight:700}
 .rdm-body{flex:1;min-height:0;display:flex;gap:28px;padding:20px 24px 24px;overflow:auto;flex-wrap:wrap;align-content:flex-start}
 .rdm-main{flex:1 1 560px;min-width:0;display:flex;flex-direction:column;gap:12px}
 .rdm-scroll{overflow:auto;max-width:100%;padding-bottom:8px}

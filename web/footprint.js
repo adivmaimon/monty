@@ -67,12 +67,19 @@
     if (tile) {
       if (!hasAny(d)) { tile.hidden = true; return; }
       const c = d.counts;
-      const big = c.named ? `${c.namedChanged}<span class="rm-of">/${c.named}</span>` : String(c.outside);
-      const unit = c.named ? `${noun(d) === 'plan' ? 'planned' : 'named'} files changed` : `${c.outside === 1 ? 'file' : 'files'} changed`;
-      tile.innerHTML = `<div class="lbl">Footprint</div>
+      const n = noun(d);
+      const src = 'Changes come from git commits and uncommitted edits since the ' + n + ' was written, plus edits made in a live session working on it.';
+      const big = c.named
+        ? `<span data-tip="The ${n} lists ${plural(c.named, 'file')} to create or change. ${c.namedChanged} of them ${c.namedChanged === 1 ? 'has' : 'have'} changed so far. ${src}">${c.namedChanged}<span class="rm-of">/${c.named}</span></span>`
+        : `<span data-tip="The ${n} lists no files, so every change counts as outside it. ${src}">${c.outside}</span>`;
+      const unit = c.named ? `of its files changed` : `${c.outside === 1 ? 'file' : 'files'} changed`;
+      const other = c.outside
+        ? `<span class="rm-warn" data-tip="${plural(c.outside, 'file')} changed since the ${n} was written that the ${n} never mentions. Could be work it missed, or unrelated work in the same repo.">${plural(c.outside, 'other file')} changed</span>`
+        : `<span data-tip="Every change since the ${n} was written is to a file it lists.">No other files changed</span>`;
+      tile.innerHTML = `<div class="lbl" data-tip="Which files this ${n} touches, and whether work has landed anywhere it didn't plan.">Footprint</div>
         <div class="rm-big">${big}</div><div class="rm-unit">${unit}</div>
-        <div class="rm-tsub">${c.named && c.outside ? `<span class="rm-warn">${plural(c.outside, 'file')} outside the ${noun(d)}</span>` : c.named ? `Nothing changed outside the ${noun(d)}` : `None named in the ${noun(d)}`}</div>
-        <a href="#" class="rm-act" data-fp-open>Show where it lands</a>`;
+        <div class="rm-tsub">${c.named ? other : ''}</div>
+        <a href="#" class="rm-act" data-fp-open>View footprint map</a>`;
       tile.querySelector('[data-fp-open]').onclick = (e) => { e.preventDefault(); open(ctx.p.file); };
       tile.hidden = false;
       return;
@@ -82,7 +89,7 @@
     if (!hasAny(d)) return; // nothing to show: hidden, not empty
     const card = document.createElement('div');
     card.className = 'side fp-side';
-    card.innerHTML = `<h2>Footprint</h2><div class="fp-counts">${countLines(d)}</div><a href="#" class="fp-open" data-fp-open>Show where it lands</a>`;
+    card.innerHTML = `<h2>Footprint</h2><div class="fp-counts">${countLines(d)}</div><a href="#" class="fp-open" data-fp-open>View footprint map</a>`;
     card.querySelector('[data-fp-open]').onclick = (e) => { e.preventDefault(); open(ctx.p.file); };
     // After the phases card, so progress still leads the column.
     const first = ctx.side.firstElementChild;
@@ -116,33 +123,24 @@
     sel = null;
     renderView();
   }
+  let sheet = null; // the footprint map's MontyOverlay sheet, made on first open
   function close() {
     viewFile = null;
-    const el = document.getElementById('fpView');
-    if (el) el.hidden = true;
+    if (sheet) sheet.hidden = true;
   }
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && viewFile) close(); });
 
   function renderView() {
     if (!ctx || !viewFile) return;
     const d = (cache.get(viewFile) || {}).data;
     if (!d) return;
-    let el = document.getElementById('fpView');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'fpView';
-      el.className = 'fp-view';
-      ctx.reader.appendChild(el);
-      el.addEventListener('click', (e) => {
+    if (!sheet) {
+      sheet = window.MontyOverlay.create(close);
+      sheet.addEventListener('click', (e) => {
         const cell = e.target.closest('[data-fp-cell]');
-        if (cell) { sel = cell.dataset.fpCell; renderView(); return; }
-        if (e.target.closest('[data-fp-close]')) { e.preventDefault(); close(); }
+        if (cell) { sel = cell.dataset.fpCell; renderView(); }
       });
     }
-    el.hidden = false;
-    // Below the reader's toolbar, so Back and the doc path stay in reach.
-    const bar = ctx.reader.querySelector('.readerbar');
-    el.style.top = (bar ? bar.offsetHeight : 0) + 'px';
+    sheet.hidden = false;
     const marked = d.areas.flatMap((a) => a.marked);
     if (!sel || !marked.some((f) => f.path === sel)) {
       const pick = marked.find((f) => f.state === 'outside') || marked.find((f) => f.state === 'planned') || marked[0];
@@ -159,14 +157,15 @@
       return `<div class="fp-area" style="flex:${grow} 1 ${Math.min(360, 140 + Math.sqrt(a.total) * 14)}px"><span class="fp-name mono">${esc(a.name)}</span><div class="fp-cells">${cells}</div></div>`;
     }).join('');
     const abs = cur ? d.repoPath + '/' + cur.path : '';
-    el.innerHTML = `<div class="fp-head">
-        <a href="#" class="btn" data-fp-close>Close</a>
-        <span class="fp-title clamp1">${esc(d.name)}</span>
-        <span class="spacer"></span>
-        <span class="fp-key"><span class="fp-sw fp-c-changed"></span>changed</span>
-        <span class="fp-key"><span class="fp-sw fp-c-planned"></span>${d.kind === 'spec' ? 'named' : 'planned'}</span>
-        <span class="fp-key"><span class="fp-sw fp-c-outside"></span>outside ${noun(d)}</span>
-      </div>
+    const legend = `<span class="fp-key" data-tip="A file the ${noun(d)} names that has changed since it was written."><span class="fp-sw fp-c-changed"></span>changed</span>
+        <span class="fp-key" data-tip="A file the ${noun(d)} names that has not changed yet: work still to do."><span class="fp-sw fp-c-planned"></span>${d.kind === 'spec' ? 'named' : 'planned'}, not yet</span>
+        <span class="fp-key" data-tip="A file that changed since the ${noun(d)} was written but that the ${noun(d)} never mentions."><span class="fp-sw fp-c-outside"></span>changed, not in the ${noun(d)}</span>`;
+    sheet.innerHTML = window.MontyOverlay.bar({
+      kind: 'Footprint map',
+      title: d.name,
+      sub: `Where this ${noun(d)}'s work lands in the repo. Each box is a folder; each cell a file.`,
+      controls: legend,
+    }) + `<div class="ov-body fp-view">
       <div class="fp-body">
         <div class="fp-areas">${areas}</div>
         <aside class="fp-aside">
@@ -183,7 +182,7 @@
             <span class="muted fp-src">${plural(d.files, 'file')} in ${plural(d.areas.length, 'area')}.</span>
           </div>
         </aside>
-      </div>`;
+      </div></div>`;
   }
 
   window.MontyFootprint = { side };

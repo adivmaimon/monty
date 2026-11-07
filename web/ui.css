@@ -1,0 +1,20 @@
+/* Shared pieces (web/ui.js): the map sheet every view opens in, and tooltips. */
+
+.ov{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.ov[hidden]{display:none}
+body:has(.ov:not([hidden])){overflow:hidden}
+.ov-bar{display:flex;align-items:center;gap:16px;padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--line);min-width:0;flex:none}
+.ov-names{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.ov-kind{font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--accent)}
+.ov-title{font-size:17px;font-weight:700;color:var(--text);min-width:0}
+.ov-sub{font-size:12.5px;color:var(--muted);line-height:1.45}
+.ov-controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end}
+.ov-close{flex:none;display:inline-flex;align-items:center;gap:8px;background:transparent;color:var(--soft);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
+.ov-close:hover{color:var(--text);border-color:var(--muted)}
+.ov-body{flex:1;overflow:auto;padding:20px max(20px,calc((100% - 1280px) / 2)) 32px;min-height:0}
+@media (max-width:640px){.ov-bar{flex-wrap:wrap}.ov-controls{order:3;width:100%;justify-content:flex-start}}
+
+[data-tip]{cursor:help}
+a[data-tip],button[data-tip]{cursor:pointer}
+.tip{position:fixed;z-index:60;max-width:300px;padding:8px 10px;border-radius:8px;background:var(--card);color:var(--text);border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.35);font-size:12.5px;line-height:1.45;pointer-events:none}
+.tip[hidden]{display:none}

@@ -316,15 +316,25 @@
     return `<ul class="rm-items">${shown.map((i) => `<li class="${i.done ? 'done' : ''}"><span class="mk">${i.done ? '✓' : '○'}</span>${MD().inline(i.text, c.mdCtx)}</li>`).join('')}${items.length > ITEMS_SHOWN ? `<li class="more">+${items.length - ITEMS_SHOWN} more</li>` : ''}</ul>`;
   }
 
+  // What each status means, for its tag's tooltip.
+  const STATUS_TIP = {
+    active: (n) => `In progress: this ${n} is being worked on now.`,
+    pending: (n) => `Not started: this ${n} is written but no work has begun.`,
+    completed: (n) => `Finished: all of this ${n}'s work is done.`,
+    parked: (n) => `Parked: this ${n} is paused on purpose and nobody is working on it.`,
+    cancelled: (n) => `Cancelled: this ${n} was dropped and won't be built.`,
+  };
+
   function header(c, md, meta) {
     const p = c.project;
     const d = c.data;
     const pills = [];
     if (p) {
-      pills.push(`<span class="tag st-${p.status === 'completed' ? 'done' : p.status === 'active' ? 'working' : 'idle'}">${esc(p.status)}</span>`);
-      if (d && d.risk) pills.push(`<span class="tag rm-risk rm-risk-${esc(d.risk.level.split('-').pop())}">risk ${esc(d.risk.level)}</span>`);
-      if (SOURCE[p.source]) pills.push(`<span class="tag st-idle">${esc(SOURCE[p.source])}</span>`);
-      if (p.tasks && p.tasks.total && (!p.phases.length || SOURCE[p.source])) pills.push(`<span class="muted rm-count">${p.tasks.done} of ${p.tasks.total} tasks</span>`);
+      const noun = SOURCE[p.source] ? 'spec' : 'plan';
+      pills.push(`<span class="tag st-${p.status === 'completed' ? 'done' : p.status === 'active' ? 'working' : 'idle'}" tabindex="0" data-tip="${esc(STATUS_TIP[p.status] ? STATUS_TIP[p.status](noun) : `Status: ${p.status}.`)} From the ${noun}'s folder and its Status line.">${esc(p.status)}</span>`);
+      if (d && d.risk) pills.push(`<span class="tag rm-risk rm-risk-${esc(d.risk.level.split('-').pop())}" tabindex="0" data-tip="Risk ${esc(d.risk.level)}, from the ${noun}'s Risk section: how likely this change is to break something, and so how carefully to review it.">risk ${esc(d.risk.level)}</span>`);
+      if (SOURCE[p.source]) pills.push(`<span class="tag st-idle" tabindex="0" data-tip="A spec written with ${esc(SOURCE[p.source])}.">${esc(SOURCE[p.source])}</span>`);
+      if (p.tasks && p.tasks.total && (!p.phases.length || SOURCE[p.source])) pills.push(`<span class="muted rm-count" tabindex="0" data-tip="Checkboxes ticked in the ${noun}.">${p.tasks.done} of ${p.tasks.total} tasks</span>`);
     } else if (c.kind) pills.push(`<span class="eyebrow">${esc(c.kind)}</span>`);
     const statusNote = p && p.statusText && !/^(active|pending|in progress|complete[d]?|done|planned|draft|parked|cancell?ed)\.?$/i.test(p.statusText.trim()) ? p.statusText : '';
     // Depends on is left to the Roadmap tile app.js adds under this card.
@@ -335,7 +345,7 @@
         ${pills.length ? `<div class="rm-pills">${pills.join('')}</div>` : ''}
         <h1>${esc(c.title)}</h1>
         ${c.goal ? `<p class="rm-goal">${MD().inline(c.goal, c.mdCtx)}</p>` : ''}
-        ${statusNote || chips.length ? `<div class="rm-facts">${statusNote ? `<span class="rm-status">${MD().inline(statusNote, c.mdCtx)}</span>` : ''}${chips.map(([k, v]) => `<span><span class="rm-fk">${esc(k)}</span> ${esc(String(v).replace(/`/g, ''))}</span>`).join('')}</div>` : ''}
+        ${statusNote || chips.length ? `<div class="rm-facts">${statusNote ? `<span class="rm-status" tabindex="0" data-tip="The ${p && SOURCE[p.source] ? 'spec' : 'plan'}'s own Status line, as written.">${MD().inline(statusNote, c.mdCtx)}</span>` : ''}${chips.map(([k, v]) => `<span><span class="rm-fk">${esc(k)}</span> ${esc(String(v).replace(/`/g, ''))}</span>`).join('')}</div>` : ''}
       </div>
     </header>`;
   }
@@ -373,18 +383,6 @@
     return { named, outside, changed: named.filter((f) => f.changed), basis };
   }
 
-  function filesStrip(c) {
-    const f = fileFacts(c);
-    if (!f.named.length && !f.outside.length) return '';
-    const what = c.project && (c.project.source === 'caddis' || c.project.source === 'claude-projects') ? 'planned' : 'named';
-    const cells = [...f.named.map((x) => (x.changed ? 'on' : '')), ...f.outside.map(() => 'out')].slice(0, 40);
-    const outText = f.outside.length ? ` <span class="rm-out">${f.outside.length} changed outside the ${what === 'planned' ? 'plan' : 'spec'}:</span> ${f.outside.slice(0, 4).map((x) => `<a href="#" class="mono" data-open="${esc(c.repoPath + '/' + x.path)}">${esc(x.path)}</a>`).join(', ')}${f.outside.length > 4 ? ` and ${f.outside.length - 4} more` : ''}` : '';
-    return `<div class="rm-files" title="${esc(f.basis)}">
-      <div class="rm-strip">${cells.map((k) => `<span class="${k}"></span>`).join('')}</div>
-      <div class="rm-ftext">${f.named.length ? `${f.changed.length} of ${f.named.length} ${what} files changed.` : ''}${outText}</div>
-    </div>`;
-  }
-
   function otherDocs(c) {
     const p = c.project;
     const others = p && p.docs ? p.docs.filter((f) => f !== c.file) : [];
@@ -394,20 +392,22 @@
 
   function renderBrief(c) {
     const phases = phaseList(c);
-    const stepper = phases.length ? `<div class="rm-steps" style="--n:${Math.min(phases.length, 6)}">${phases.map((ph) => `
+    const doneN = phases.filter((ph) => ph.state === 'done').length;
+    const STEP_TIP = { done: 'Done: its gate passed.', cur: 'Current: the phase being worked on now.', todo: 'Not started yet.' };
+    const stepper = phases.length ? `<section class="rm-phases"><div class="rm-phases-h"><span class="lbl">Phases</span><span class="muted rm-count" tabindex="0" data-tip="From the phase headings: a phase is done when its heading is marked DONE.">${doneN} of ${phases.length} done</span></div>
+      <div class="rm-steps">${phases.map((ph) => `
       <div class="rm-step ${ph.state}">
-        <div class="rm-rail">${ICON[ph.state]}<span class="rm-line"></span></div>
+        <div class="rm-rail"><span tabindex="0" data-tip="Phase ${ph.n}. ${STEP_TIP[ph.state] || ''}">${ICON[ph.state]}</span><span class="rm-line"></span></div>
+        <div class="rm-pn">Phase ${ph.n}</div>
         <div class="rm-st">${esc(ph.title || 'Phase ' + ph.n)}</div>
         ${ph.state === 'cur' ? (ph.items && ph.items.length ? itemList(ph.items, c) : ph.gate ? `<div class="rm-gate"><span class="muted">Gate:</span> ${MD().inline(ph.gate, c.mdCtx)}</div>` : '') : phaseMeta(ph) ? `<div class="rm-sm mono">${phaseMeta(ph)}</div>` : ''}
-      </div>`).join('')}</div>` : '';
+      </div>`).join('')}</div></section>` : '';
     const p = c.project;
     const tasks = !phases.length && p && p.tasks && p.tasks.total ? `<div class="rm-strip rm-tasks" role="img" aria-label="${p.tasks.done} of ${p.tasks.total} tasks done">${Array.from({ length: Math.min(p.tasks.total, 24) }, (_, i) => `<span class="${i < Math.round((p.tasks.done / p.tasks.total) * Math.min(p.tasks.total, 24)) ? 'on' : ''}"></span>`).join('')}</div>` : '';
     const qs = questionsHtml(c);
-    const files = filesStrip(c);
     const docs = otherDocs(c);
     const lower = [
       qs ? `<div class="rm-col rm-col-q"><div class="lbl rm-lbl-q">Open questions</div>${qs}</div>` : '',
-      files ? `<div class="rm-col"><div class="lbl">Files</div>${files}</div>` : '',
     ].filter(Boolean);
     return `<div class="rm-brief">
       ${header(c)}

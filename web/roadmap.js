@@ -290,13 +290,15 @@
     const lit = sel ? chain(sel, cards) : null;
     const name = (id) => (byId.get(id) ? byId.get(id).p.name : id);
 
-    const head = `<div class="rdm-bar">
-      ${opts.back ? '<a href="#" class="btn" data-rm-back>Back</a>' : ''}
-      <span class="rdm-repo">${esc(opts.repo || '')}</span>
-      <span class="muted">${cards.length} plan${cards.length === 1 ? '' : 's'}</span>
-      <span class="spacer"></span>
-      ${opts.repos && opts.repos.length > 1 ? `<label class="filter">Repo <select data-rm-repo>${opts.repos.map((r) => `<option ${r === opts.repo ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></label>` : ''}
-    </div>`;
+    // The shared sheet's bar (web/ui.js). In VS Code the roadmap is its own tab: no Close.
+    if (!el.classList.contains('ov')) window.MontyOverlay.adopt(el, () => last && last.opts.onBack && last.opts.onBack());
+    const head = window.MontyOverlay.bar({
+      kind: 'Roadmap',
+      title: `${opts.repo || ''} · ${cards.length} plan${cards.length === 1 ? '' : 's'}`,
+      sub: 'Every plan in this repo, in Done, Active and Next, with a line from each plan to the ones it waits on. Click a plan to light up its chain.',
+      controls: opts.repos && opts.repos.length > 1 ? `<label class="filter">Repo <select data-rm-repo>${opts.repos.map((r) => `<option ${r === opts.repo ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></label>` : '',
+      closable: !!opts.back,
+    });
 
     if (!cards.length) return paint(el, head + '<div class="rdm-empty muted">No plans in this repo to put on a roadmap.</div>');
 
@@ -308,7 +310,7 @@
     const edges = [...L.edges].sort((a, b) => isLit(a) - isLit(b));
     const svg = `<svg class="rdm-lines" width="${L.width}" height="${L.height}" aria-hidden="true">
       <defs><marker id="rdm-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z"/></marker></defs>
-      ${edges.map((e) => `<path d="${path(e.points)}" class="${e.cycle ? 'cycle' : ''} ${sel && isLit(e) ? 'lit' : ''} ${lit && !isLit(e) ? 'dim' : ''}" ${e.back || e.cycle ? 'marker-end="url(#rm-arrow)"' : ''}/>`).join('')}
+      ${edges.map((e) => `<path d="${path(e.points)}" class="${e.cycle ? 'cycle' : ''} ${sel && isLit(e) ? 'lit' : ''} ${lit && !isLit(e) ? 'dim' : ''}" ${e.back || e.cycle ? 'marker-end="url(#rdm-arrow)"' : ''}/>`).join('')}
     </svg>`;
     const labels = L.cols.map((c) => `<div class="rdm-col" style="left:${c.x}px">${c.label}</div>`).join('');
     const cardsHtml = cards.map((c) => {
@@ -375,11 +377,6 @@
       const card = el.querySelector(`[data-card="${CSS.escape(sel)}"]`);
       if (card) card.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
     }));
-    const back = el.querySelector('[data-rm-back]');
-    if (back) back.onclick = (e) => {
-      e.preventDefault();
-      if (last && last.opts.onBack) last.opts.onBack();
-    };
     const repo = el.querySelector('[data-rm-repo]');
     if (repo) repo.onchange = () => last && last.opts.onRepo && last.opts.onRepo(repo.value);
   }
@@ -387,6 +384,7 @@
   if (typeof document !== 'undefined') {
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && sel && last && !last.el.hidden) {
+        e.preventDefault(); // Esc clears the selection first; the next one closes the roadmap
         sel = null;
         again();
       }

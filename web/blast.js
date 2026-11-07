@@ -17,12 +17,7 @@
   const SHOW_UNTESTED = 12;
 
   const css = `
-.blast{position:fixed;inset:0;z-index:30;background:rgba(10,8,14,.72);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:32px 16px}
-.blast[hidden]{display:none}
-.blast .bl-in{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:28px 32px;width:100%;max-width:1180px;display:flex;flex-direction:column;gap:24px}
-.blast .bl-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
-.blast .bl-head b{font-size:22px;font-weight:700}
-.blast .bl-head .bl-close{margin-left:auto;cursor:pointer}
+.blast .bl-in{display:flex;flex-direction:column;gap:24px}
 .blast .bl-body{display:flex;gap:36px;flex-wrap:wrap}
 .blast .bl-cols{flex:1 1 640px;display:grid;grid-template-columns:1fr 28px 1fr 28px 1fr;align-items:start;min-width:0}
 .blast .bl-col{display:flex;flex-direction:column;gap:6px;min-width:0}
@@ -46,18 +41,17 @@
 .blast aside button{align-self:flex-start;background:transparent;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:5px 12px;font-size:12.5px;margin-top:6px;cursor:pointer}
 .blast .bl-foot{font-size:12px;color:var(--muted)}
 .btn.blast-open{align-self:flex-start;cursor:pointer;font-size:12.5px}
-@media (max-width:760px){.blast .bl-cols{grid-template-columns:1fr;gap:18px}.blast .bl-arrow{display:none}.blast .bl-in{padding:20px 16px}}
+@media (max-width:760px){.blast .bl-cols{grid-template-columns:1fr;gap:18px}.blast .bl-arrow{display:none}}
 `;
   const style = document.createElement('style');
   style.textContent = css;
   document.head.appendChild(style);
 
-  const root = document.createElement('div');
-  root.className = 'blast';
-  root.hidden = true;
+  // The blast radius map opens in the shared sheet (web/ui.js): name on the left, Close on the right.
+  const root = window.MontyOverlay.create(() => hide());
+  root.classList.add('blast');
   root.setAttribute('role', 'dialog');
-  root.setAttribute('aria-label', 'Blast radius');
-  document.body.appendChild(root);
+  root.setAttribute('aria-label', 'Blast radius map');
 
   const arrow = '<div class="bl-arrow"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="var(--muted)" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg></div>';
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -98,20 +92,23 @@
          ${navigator.clipboard ? `<button data-blast-copy title="Copies these as a markdown list, for the plan's Tests section">${copied ? 'Copied' : 'Copy for Tests'}</button>` : ''}`
       : '<div class="ok">Every importer is within reach of a test.</div>';
 
-    root.innerHTML = `<div class="bl-in">
-      <div class="bl-head"><b>${esc(p.name)}</b><span class="muted">what else these changes reach</span><a href="#" class="btn bl-close" data-blast-close>Close</a></div>
+    root.innerHTML = window.MontyOverlay.bar({
+      kind: 'Blast radius map',
+      title: p.name,
+      sub: 'What else this plan\'s changes can affect, through the files that import them. Read it before building to see what to retest.',
+    }) + `<div class="ov-body"><div class="bl-in">
       <div class="bl-body">
         <div class="bl-cols">
-          <div class="bl-col"><h2>Edited</h2>${edited}${extra}</div>
+          <div class="bl-col"><h2 data-tip="Files the plan changes that some other file imports. A hub is a file many others import.">Files it edits</h2>${edited}${extra}</div>
           ${arrow}
-          <div class="bl-col"><h2>Imported by</h2>${importers}</div>
+          <div class="bl-col"><h2 data-tip="Files that import an edited file directly. These are the first to break if an edit changes behaviour.">Imported by</h2>${importers}</div>
           ${arrow}
-          <div class="bl-col"><h2>${viaRows.length ? 'Through the hubs' : 'Reach by area'}</h2>${areas}${reachNote}</div>
+          <div class="bl-col"><h2 data-tip="${viaRows.length ? 'Files further out that are reached through a hub, counted by folder.' : 'Every file that imports the edits, directly or through others, counted by folder.'}">${viaRows.length ? 'Reached through hubs' : 'Reach by folder'}</h2>${areas}${reachNote}</div>
         </div>
-        <aside><h2>No test reaches</h2>${untested}</aside>
+        <aside><h2 data-tip="Direct importers that no test file imports, directly or through others. A break there would not be caught by the tests.">Not covered by tests</h2>${untested}</aside>
       </div>
       <div class="bl-foot">From the files the plan names, through Caddis's import map${b.mapCommit ? ` (built at ${esc(b.mapCommit)})` : ''}. I don't rebuild the map, so it may be a step behind the code.</div>
-    </div>`;
+    </div></div>`;
   }
 
   function show(file) {
@@ -135,10 +132,6 @@
       return show(o.dataset.blast);
     }
     if (root.hidden) return;
-    if (e.target === root || e.target.closest('[data-blast-close]')) {
-      e.preventDefault();
-      return hide();
-    }
     if (e.target.closest('[data-blast-copy]')) {
       const p = specs.get(openFor);
       if (!p) return;
@@ -147,19 +140,16 @@
     }
     // File links (data-open) are handled by app.js; the view stays open behind the editor tab.
   });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !root.hidden) hide();
-  });
 
   window.MontyBlast = {
     /** The reader header's tile, or '' (same rules as button). */
     tile(p) {
       if (!this.button(p)) return '';
       const b = p.blast;
-      return `<div class="rm-tile"><div class="lbl">Blast radius</div>
-        <div class="rm-big">${b.reach}</div><div class="rm-unit">${b.reach === 1 ? 'file' : 'files'} in reach</div>
-        <div class="rm-tsub">${plural(b.importersTotal, 'file imports', 'files import')} what it edits${b.untestedTotal ? `<br><span class="rm-warn">${b.untestedTotal} no test reaches</span>` : ''}</div>
-        <a href="#" class="rm-act" data-blast="${esc(p.file)}">Show what it reaches</a></div>`;
+      return `<div class="rm-tile"><div class="lbl" data-tip="What else this plan's changes can affect, worked out from the repo's Caddis import map.">Blast radius</div>
+        <div class="rm-big"><span data-tip="Files that import a file this plan edits, directly or through other files. A change to the edited files can affect any of them.">${b.reach}</span></div><div class="rm-unit">${b.reach === 1 ? 'file' : 'files'} it can affect</div>
+        <div class="rm-tsub"><span data-tip="Files that import an edited file directly: the first place a change shows up.">${plural(b.importersTotal, 'file imports', 'files import')} its files directly</span>${b.untestedTotal ? `<br><span class="rm-warn" data-tip="Of those direct importers, ${b.untestedTotal} ${b.untestedTotal === 1 ? 'is' : 'are'} not imported by any test file, directly or through others. A break there would not be caught by the tests.">${b.untestedTotal} not covered by tests</span>` : ''}</div>
+        <a href="#" class="rm-act" data-blast="${esc(p.file)}">View blast radius map</a></div>`;
     },
     /** The spec header's button, or '' when the spec has no blast radius (no Caddis map, or nothing imported). */
     button(p) {

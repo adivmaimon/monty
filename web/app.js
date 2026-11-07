@@ -120,7 +120,7 @@
   /** A "Roadmap" link for a repo, only when it has two cards or more (a view with nothing to show is hidden). */
   function roadmapIn(repo, id) {
     if (!repo || !state || !RM.worth(state.projects.filter((p) => p.repo === repo))) return '';
-    return `<a href="#" class="rdm-in" data-roadmap="${esc(repo)}" data-sel="${esc(id || '')}">Roadmap</a>`;
+    return `<a href="#" class="rdm-in" data-roadmap="${esc(repo)}" data-sel="${esc(id || '')}">View roadmap</a>`;
   }
   /** The reader header's Roadmap tile: what this spec needs and unblocks. '' when the repo has no roadmap. */
   function roadmapTile(p) {
@@ -130,14 +130,17 @@
     const open = needs.filter((x) => x.status !== 'completed');
     const unblocks = state.projects.filter((x) => (x.dependsOn || []).includes(p.id));
     const names = (xs) => xs.slice(0, 2).map((x) => esc(x.name)).join(', ') + (xs.length > 2 ? ` +${xs.length - 2}` : '');
-    const [big, unit, cls] = p.status === 'completed' ? ['Done', 'nothing to wait on', 'rm-ok']
-      : open.length ? [String(open.length), `${open.length === 1 ? 'spec' : 'specs'} to finish first`, 'rm-warn']
-      : ['Ready', needs.length ? 'everything it needs is done' : 'needs nothing else', 'rm-ok'];
-    const lines = [needs.length ? `Needs ${names(needs)}` : '', unblocks.length ? `Unblocks ${names(unblocks)}` : ''].filter(Boolean);
-    return `<div class="rm-tile"><div class="lbl">Roadmap</div>
-      <div class="rm-big ${cls}">${big}</div><div class="rm-unit">${unit}</div>
-      <div class="rm-tsub">${lines.length ? lines.join('<br>') : 'No links to other specs'}</div>
-      <a href="#" class="rm-act" data-roadmap="${esc(p.repo)}" data-sel="${esc(p.id)}">Open roadmap</a></div>`;
+    const [big, unit, cls, tip] = p.status === 'completed' ? ['Done', 'nothing left to wait on', 'rm-ok', 'This plan is finished.']
+      : open.length ? [String(open.length), `${open.length === 1 ? 'plan' : 'plans'} to finish first`, 'rm-warn', `This plan depends on ${open.length === 1 ? 'a plan that is' : 'plans that are'} not finished yet. Build ${open.length === 1 ? 'it' : 'them'} first.`]
+      : ['Ready', needs.length ? 'everything it needs is done' : 'waits on no other plan', 'rm-ok', needs.length ? 'Every plan this one depends on is finished, so it can be built now.' : 'No other plan has to be finished before this one can be built.'];
+    const lines = [
+      needs.length ? `<span data-tip="Plans this one depends on, from its Depends on line.">Needs ${names(needs)}</span>` : '',
+      unblocks.length ? `<span data-tip="Plans that depend on this one and can start once it is done.">Unblocks ${names(unblocks)}</span>` : '',
+    ].filter(Boolean);
+    return `<div class="rm-tile"><div class="lbl" data-tip="How this plan fits with the repo's other plans: what it waits on and what waits on it.">Roadmap</div>
+      <div class="rm-big ${cls}"><span data-tip="${esc(tip)}">${big}</span></div><div class="rm-unit">${unit}</div>
+      <div class="rm-tsub">${lines.length ? lines.join('<br>') : '<span data-tip="No plan in this repo names this one in a Depends on, Requires or Blocked by line, and this one names none.">Not linked to other plans</span>'}</div>
+      <a href="#" class="rm-act" data-roadmap="${esc(p.repo)}" data-sel="${esc(p.id)}">View roadmap</a></div>`;
   }
   function showRoadmap() {
     if (!state) return;
