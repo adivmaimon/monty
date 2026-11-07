@@ -152,6 +152,15 @@
   });
 
   window.MontyBlast = {
+    /** The reader header's tile, or '' (same rules as button). */
+    tile(p) {
+      if (!this.button(p)) return '';
+      const b = p.blast;
+      return `<div class="rm-tile"><div class="lbl">Blast radius</div>
+        <div class="rm-big">${b.reach}</div><div class="rm-unit">${b.reach === 1 ? 'file' : 'files'} in reach</div>
+        <div class="rm-tsub">${plural(b.importersTotal, 'file imports', 'files import')} what it edits${b.untestedTotal ? `<br><span class="rm-warn">${b.untestedTotal} no test reaches</span>` : ''}</div>
+        <a href="#" class="rm-act" data-blast="${esc(p.file)}">Show what it reaches</a></div>`;
+    },
     /** The spec header's button, or '' when the spec has no blast radius (no Caddis map, or nothing imported). */
     button(p) {
       if (!p || !p.blast) {

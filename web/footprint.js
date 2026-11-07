@@ -62,6 +62,21 @@
   function placeSide() {
     if (!ctx || !ctx.side.isConnected) return;
     const d = (cache.get(ctx.p.file) || {}).data;
+    // The reader's header tile row (app.js), when the page has one.
+    const tile = document.querySelector('#doc [data-tile="footprint"]');
+    if (tile) {
+      if (!hasAny(d)) { tile.hidden = true; return; }
+      const c = d.counts;
+      const big = c.named ? `${c.namedChanged}<span class="rm-of">/${c.named}</span>` : String(c.outside);
+      const unit = c.named ? `${noun(d) === 'plan' ? 'planned' : 'named'} files changed` : `${c.outside === 1 ? 'file' : 'files'} changed`;
+      tile.innerHTML = `<div class="lbl">Footprint</div>
+        <div class="rm-big">${big}</div><div class="rm-unit">${unit}</div>
+        <div class="rm-tsub">${c.named && c.outside ? `<span class="rm-warn">${plural(c.outside, 'file')} outside the ${noun(d)}</span>` : c.named ? `Nothing changed outside the ${noun(d)}` : `None named in the ${noun(d)}`}</div>
+        <a href="#" class="rm-act" data-fp-open>Show where it lands</a>`;
+      tile.querySelector('[data-fp-open]').onclick = (e) => { e.preventDefault(); open(ctx.p.file); };
+      tile.hidden = false;
+      return;
+    }
     const old = ctx.side.querySelector('.fp-side');
     if (old) old.remove();
     if (!hasAny(d)) return; // nothing to show: hidden, not empty

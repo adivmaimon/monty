@@ -327,13 +327,16 @@
       if (p.tasks && p.tasks.total && (!p.phases.length || SOURCE[p.source])) pills.push(`<span class="muted rm-count">${p.tasks.done} of ${p.tasks.total} tasks</span>`);
     } else if (c.kind) pills.push(`<span class="eyebrow">${esc(c.kind)}</span>`);
     const statusNote = p && p.statusText && !/^(active|pending|in progress|complete[d]?|done|planned|draft|parked|cancell?ed)\.?$/i.test(p.statusText.trim()) ? p.statusText : '';
-    const chips = (meta || []).filter(([k]) => !/^(status|phases?|type|reviewed)$/i.test(k.trim()));
+    // Depends on is left to the Roadmap tile app.js adds under this card.
+    const chips = (meta || []).filter(([k]) => !/^(status|phases?|type|reviewed|depends on|requires|blocked by)$/i.test(k.trim()));
+    // One headline card; app.js adds a row of tiles (footprint, roadmap, blast radius) below it.
     return `<header class="rm-head">
-      <h1>${esc(c.title)}</h1>
-      ${pills.length ? `<div class="rm-pills">${pills.join('')}</div>` : ''}
-      ${statusNote ? `<p class="rm-status">${MD().inline(statusNote, c.mdCtx)}</p>` : ''}
-      ${c.goal ? `<p class="rm-goal">${MD().inline(c.goal, c.mdCtx)}</p>` : ''}
-      ${chips.length ? `<div class="chips">${chips.map(([k, v]) => `<span>${esc(k)}: ${esc(String(v).replace(/`/g, ''))}</span>`).join('')}</div>` : ''}
+      <div class="rm-main">
+        ${pills.length ? `<div class="rm-pills">${pills.join('')}</div>` : ''}
+        <h1>${esc(c.title)}</h1>
+        ${c.goal ? `<p class="rm-goal">${MD().inline(c.goal, c.mdCtx)}</p>` : ''}
+        ${statusNote || chips.length ? `<div class="rm-facts">${statusNote ? `<span class="rm-status">${MD().inline(statusNote, c.mdCtx)}</span>` : ''}${chips.map(([k, v]) => `<span><span class="rm-fk">${esc(k)}</span> ${esc(String(v).replace(/`/g, ''))}</span>`).join('')}</div>` : ''}
+      </div>
     </header>`;
   }
 

@@ -122,6 +122,23 @@
     if (!repo || !state || !RM.worth(state.projects.filter((p) => p.repo === repo))) return '';
     return `<a href="#" class="rdm-in" data-roadmap="${esc(repo)}" data-sel="${esc(id || '')}">Roadmap</a>`;
   }
+  /** The reader header's Roadmap tile: what this spec needs and unblocks. '' when the repo has no roadmap. */
+  function roadmapTile(p) {
+    if (!roadmapIn(p.repo, p.id)) return '';
+    const byId = new Map(state.projects.map((x) => [x.id, x]));
+    const needs = (p.dependsOn || []).map((id) => byId.get(id)).filter(Boolean);
+    const open = needs.filter((x) => x.status !== 'completed');
+    const unblocks = state.projects.filter((x) => (x.dependsOn || []).includes(p.id));
+    const names = (xs) => xs.slice(0, 2).map((x) => esc(x.name)).join(', ') + (xs.length > 2 ? ` +${xs.length - 2}` : '');
+    const [big, unit, cls] = p.status === 'completed' ? ['Done', 'nothing to wait on', 'rm-ok']
+      : open.length ? [String(open.length), `${open.length === 1 ? 'spec' : 'specs'} to finish first`, 'rm-warn']
+      : ['Ready', needs.length ? 'everything it needs is done' : 'needs nothing else', 'rm-ok'];
+    const lines = [needs.length ? `Needs ${names(needs)}` : '', unblocks.length ? `Unblocks ${names(unblocks)}` : ''].filter(Boolean);
+    return `<div class="rm-tile"><div class="lbl">Roadmap</div>
+      <div class="rm-big ${cls}">${big}</div><div class="rm-unit">${unit}</div>
+      <div class="rm-tsub">${lines.length ? lines.join('<br>') : 'No links to other specs'}</div>
+      <a href="#" class="rm-act" data-roadmap="${esc(p.repo)}" data-sel="${esc(p.id)}">Open roadmap</a></div>`;
+  }
   function showRoadmap() {
     if (!state) return;
     const repos = [...new Set(state.projects.map((p) => p.repo))].sort();
@@ -627,9 +644,9 @@
       return;
     }
     const out = R.render({ md: docMd, file: docFile, project: p, state, mode, frontmatter, nameFromPath, docKind });
-    // Other views hang off the reader's header: the roadmap link (web/roadmap.js) and the
-    // blast radius button (web/blast.js). Each is '' when it has nothing to show.
-    const extras = p ? roadmapIn(p.repo, p.id) + (window.MontyBlast ? window.MontyBlast.button(p) : '') : '';
+    // A row of tiles under the reader's headline card: footprint (filled by web/footprint.js
+    // once its data arrives), roadmap and blast radius. A tile with nothing to show is left out.
+    const extras = p ? '<div class="rm-tile" data-tile="footprint" hidden></div>' + roadmapTile(p) + (window.MontyBlast ? window.MontyBlast.tile(p) : '') : '';
     // Live state arrives every second or so; redrawing the same page would reset what the
     // reader has open and where the caret is.
     const html = out.doc + '\u0000' + out.side + '\u0000' + extras;
@@ -640,7 +657,7 @@
     $('docSide').innerHTML = out.side;
     if (extras) {
       const head = $('doc').querySelector('.rm-head');
-      if (head) head.insertAdjacentHTML('beforeend', `<div class="rm-extras">${extras}</div>`);
+      if (head) head.insertAdjacentHTML('beforeend', `<div class="rm-tiles">${extras}</div>`);
     }
     renderMermaid($('doc'));
     R.wire($('readerbody'));
