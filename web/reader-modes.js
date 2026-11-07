@@ -357,20 +357,38 @@
     const qs = (c.data && c.data.questions) || [];
     if (!qs.length) return '';
     const file = c.data.questionsFile || c.file;
-    const rows = qs.map((q) => {
+    const fname = file.split('/').pop();
+    const rows = qs.map((q, n) => {
       const key = file + '#' + q.index;
+      const num = `<span class="rm-qn" aria-hidden="true">${q.answer ? '✓' : n + 1}</span>`;
       let act;
+      // A decision written as the bullet itself ("X (agent, 2026-11-06)") reads once, with who and when.
+      const tag = /\s*\((owner|agent|[\w.-]+),\s*(\d{4}-\d{2}-\d{2})\)\s*\.?\s*$/.exec(q.text);
+      const text = tag && q.answer ? q.text.slice(0, tag.index) : q.text; // open questions keep their exact text: answering matches on it
+      const norm = (x) => String(x).replace(/\s*\([\w.-]+,\s*\d{4}-\d{2}-\d{2}\)\s*\.?\s*$/, '').replace(/[\s.*`_]+/g, ' ').trim().toLowerCase();
+      const same = q.answer && (norm(q.answer.text) === norm(text) || norm(text).startsWith(norm(q.answer.text)));
+      const by = tag ? `<span class="rm-qby">${esc(tag[1])} · ${esc(day(tag[2]))}</span>` : '';
+      q = { ...q, text };
       if (q.answer) {
-        act = `<div class="rm-answered"><span>Answered: ${MD().inline(q.answer.text, c.mdCtx)}</span>${q.answer.undoable ? `<button class="rm-link" data-rm-undo="${esc(q.answer.line)}" data-rm-file="${esc(file)}">Undo</button>` : ''}</div>`;
+        act = same ? `<div class="rm-qdec"><span class="rm-qdk">Decided</span>${by}${q.answer.undoable ? `<button class="rm-link" data-rm-undo="${esc(q.answer.line)}" data-rm-file="${esc(file)}" data-tip="Take this answer back out of ${esc(fname)}.">Undo</button>` : ''}</div>` : `<div class="rm-qdec"><span class="rm-qdk">Decided</span>${by}<span>${MD().inline(q.answer.text, c.mdCtx)}</span>${q.answer.undoable ? `<button class="rm-link" data-rm-undo="${esc(q.answer.line)}" data-rm-file="${esc(file)}" data-tip="Take this answer back out of ${esc(fname)}.">Undo</button>` : ''}</div>`;
       } else if (ui.other.has(key)) {
-        act = `<div class="rm-acts"><input class="rm-input" data-rm-draft="${esc(key)}" maxlength="300" placeholder="Your answer"><button class="rm-primary" data-rm-save="${esc(key)}" data-rm-file="${esc(file)}" data-rm-i="${q.index}" data-rm-q="${esc(q.text)}">Save</button><button class="rm-link" data-rm-cancel="${esc(key)}">Cancel</button></div>`;
+        act = `<div class="rm-acts"><input class="rm-input" data-rm-draft="${esc(key)}" maxlength="300" placeholder="Type your answer"><button class="rm-primary" data-rm-save="${esc(key)}" data-rm-file="${esc(file)}" data-rm-i="${q.index}" data-rm-q="${esc(q.text)}">Save</button><button class="rm-link" data-rm-cancel="${esc(key)}">Cancel</button></div>`;
       } else {
-        act = `<div class="rm-acts">${q.default ? `<button class="rm-primary clamp1" title="${esc(q.default)}" data-rm-answer="${esc(q.default)}" data-rm-file="${esc(file)}" data-rm-i="${q.index}" data-rm-q="${esc(q.text)}">${esc(q.default.length > 48 ? q.default.slice(0, 47) + '…' : q.default)}</button>` : ''}<button class="rm-ghost" data-rm-other="${esc(key)}">Other</button></div>`;
+        act = `<div class="rm-acts">${q.default ? `<span class="rm-qdk">Suggested</span><button class="rm-primary" data-tip="Use this answer. It is written under the question in ${esc(fname)} as a dated decision; Undo takes it back out." data-rm-answer="${esc(q.default)}" data-rm-file="${esc(file)}" data-rm-i="${q.index}" data-rm-q="${esc(q.text)}">${esc(q.default.length > 70 ? q.default.slice(0, 69) + '…' : q.default)}</button>` : ''}<button class="rm-ghost" data-rm-other="${esc(key)}">${q.default ? 'Something else' : 'Answer'}</button></div>`;
       }
-      return `<div class="rm-q"><div class="rm-qt">${MD().inline(q.text, c.mdCtx)}</div>${q.detail ? `<div class="rm-qd">${MD().inline(q.detail, c.mdCtx)}</div>` : ''}${act}</div>`;
+      return `<div class="rm-q${q.answer ? ' done' : ''}">${num}<div class="rm-qbody"><div class="rm-qt">${MD().inline(q.text, c.mdCtx)}</div>${q.detail && !q.answer ? `<div class="rm-qd">${MD().inline(q.detail, c.mdCtx)}</div>` : ''}${act}</div></div>`;
     }).join('');
     const err = ui.error ? `<div class="rm-err">${esc(ui.error)}</div>` : '';
-    return `<div class="rm-qs" title="Answering writes a dated decision under the question in ${esc(file.split('/').pop())}">${rows}${err}</div>`;
+    return `<div class="rm-qs">${rows}${err}</div>`;
+  }
+
+  /** "2 open · 3 decided", for the Open questions heading. */
+  function questionsCount(c) {
+    const qs = (c.data && c.data.questions) || [];
+    if (!qs.length) return '';
+    const done = qs.filter((q) => q.answer).length;
+    const open = qs.length - done;
+    return `<span class="rm-sub" tabindex="0" data-tip="Open questions still need a decision. Answering one writes it into the ${c.project && SOURCE[c.project.source] ? 'spec' : 'plan'} file, dated, so whoever builds it sees the decision.">${open ? `<b class="rm-qopen">${open} open</b>` : 'all decided'}${done && open ? ` · ${done} decided` : ''}</span>`;
   }
 
   /** Files the spec names, and which have changed; with the source of that judgement in the tooltip. */
@@ -429,14 +447,27 @@
       groups.set(dir, [...(groups.get(dir) || []), r]);
     }
     const known = !!(c.data && c.data.files);
-    const tree = [...groups].map(([dir, rs]) => `<div class="rm-dir">${esc(dir)}</div>${rs.map((r) => {
-      const dot = r.outside ? 'out' : r.fact && r.fact.changed ? 'on' : known ? 'todo' : 'unk';
+    const STATE = {
+      on: ['Changed', 'Changed since the plan was written.'],
+      todo: ['Not yet', 'Not changed yet: work still to do.'],
+      out: ['Not in plan', 'Changed since the plan was written, but the plan never mentions it.'],
+      unk: ['', ''],
+    };
+    const tree = [...groups].map(([dir, rs]) => `<div class="rm-fgroup"><div class="rm-dir mono">${esc(dir)}</div>${rs.map((r) => {
+      const st = r.outside ? 'out' : r.fact && r.fact.changed ? 'on' : known ? 'todo' : 'unk';
       const isNew = r.isNew || (r.fact && r.fact.isNew);
-      return `<div class="rm-frow${r.outside ? ' out' : ''}"><span class="rm-dot ${dot}"></span><a href="#" data-open="${esc(c.repoPath + '/' + r.path)}">${esc(r.path.slice(r.path.lastIndexOf('/') + 1))}${isNew ? ' <span class="rm-new" title="New file">+</span>' : ''}</a><span class="rm-note">${MD().inline(r.note, c.mdCtx)}</span></div>`;
-    }).join('')}`).join('');
+      const name = r.path.slice(r.path.lastIndexOf('/') + 1);
+      return `<div class="rm-frow ${st}">
+        <span class="rm-dot ${st}" aria-hidden="true"></span>
+        <a href="#" class="mono rm-fname" data-open="${esc(c.repoPath + '/' + r.path)}" title="${esc(r.path)}">${esc(name)}</a>
+        ${isNew ? '<span class="rm-badge" data-tip="A new file the plan creates.">new</span>' : ''}
+        ${STATE[st][0] ? `<span class="rm-fstate" data-tip="${esc(STATE[st][1])}">${STATE[st][0]}</span>` : ''}
+        ${r.note ? `<div class="rm-fnote" data-rm-clamp>${MD().inline(r.note, c.mdCtx)}</div>` : ''}
+      </div>`;
+    }).join('')}</div>`).join('');
     const done = all.filter((r) => !r.outside && r.fact && r.fact.changed).length;
-    const count = known ? `<span class="rm-sub" title="${esc(fileFacts(c).basis)}">${done} of ${rows.length} done</span>` : '';
-    return { count, html: `<div class="rm-tree mono">${tree}</div>` };
+    const count = known ? `<span class="rm-sub" tabindex="0" data-tip="${esc(fileFacts(c).basis)}. A file counts once it has changed at all; that does not mean its part of the work is finished.">${done} of ${rows.length} changed</span>` : '';
+    return { count, html: `<div class="rm-tree">${tree}</div>` };
   }
 
   function phasesHtml(body, c, open) {
@@ -492,7 +523,7 @@
       if (kind === 'changes') comp = changesHtml(s.body, c);
       else if (kind === 'phases') comp = phasesHtml(s.body, c, phaseOpen);
       else if (kind === 'tests') comp = testsHtml(s.body, c);
-      else if (kind === 'questions') { const q = questionsHtml(c); if (q) comp = { html: q }; }
+      else if (kind === 'questions') { const q = questionsHtml(c); if (q) comp = { html: q, count: questionsCount(c) }; }
       toc.push(`<a href="#" data-rm-toc="${i}">${esc(s.title.replace(/[`*]|__/g, ''))}</a>`);
       return `<section class="rm-sec" data-rm-sec="${i}" id="rm-sec-${i}"><div class="rm-h2"><h2>${MD().inline(s.title, c.mdCtx)}</h2>${comp && comp.count ? comp.count : ''}</div>${comp ? comp.html : `<div class="in">${mdHtml(s.body, c)}</div>`}</section>`;
     }).join('');
@@ -532,6 +563,12 @@
   }
 
   // ---------- behaviour ----------
+
+  // A long file note shows two lines; a click opens the rest.
+  if (typeof document !== 'undefined') document.addEventListener('click', (e) => {
+    const n = e.target.closest && e.target.closest('[data-rm-clamp]');
+    if (n && !e.target.closest('a')) n.classList.toggle('open');
+  });
 
   let spy = null;
   /** Scroll-spy and focus restore, after each render. `scroller` is the reader's scroll container. */

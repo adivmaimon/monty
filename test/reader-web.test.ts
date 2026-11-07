@@ -91,7 +91,7 @@ test('Brief on a Caddis plan: status, risk, stepper with dates, questions, files
   assert.match(out.doc, /rm-step todo[\s\S]*Client renewal/);
   assert.match(out.doc, /data-rm-answer="Yes"/);
   assert.match(out.doc, /data-rm-answer="24 hours"/);
-  assert.match(out.doc, /Answered: Postgres, beside sessions/);
+  assert.match(out.doc, /class="rm-qdk">Decided<\/span><span>Postgres, beside sessions/);
   // Files changed are the Footprint tile's job (web/footprint.js), not Brief's.
   assert.doesNotMatch(out.doc, /planned files changed/);
   assert.match(out.doc, /class="lbl">Phases<\/span>[\s\S]*2 of 4 done/);
@@ -106,10 +106,10 @@ test('Full on a Caddis plan: TOC, file tree, vertical stepper, tests, folded emp
   assert.equal(out.mode, 'full');
   assert.match(out.side, /data-rm-toc="\d+">Changes</);
   assert.doesNotMatch(out.side, />Invariants</);
-  assert.match(out.doc, /class="rm-dir">src\/auth\//);
-  assert.match(out.doc, /tokens\.ts <span class="rm-new"/);
-  assert.match(out.doc, /class="rm-frow out"[\s\S]*env\.ts[\s\S]*changed, not in plan/);
-  assert.match(out.doc, /1 of 7 done/);
+  assert.match(out.doc, /class="rm-dir mono">src\/auth\//);
+  assert.match(out.doc, /tokens\.ts<\/a>\s*<span class="rm-badge"[^>]*>new</);
+  assert.match(out.doc, /class="rm-frow out"[\s\S]*env\.ts[\s\S]*Not in plan[\s\S]*changed, not in plan/);
+  assert.match(out.doc, /1 of 7 changed/);
   assert.match(out.doc, /<details class="rm-vstep cur"[^>]* open>/);
   assert.match(out.doc, /rm-vstep done[\s\S]*Session fields/);
   assert.match(out.doc, /<code>test\/refresh\.test\.ts<\/code>/);
