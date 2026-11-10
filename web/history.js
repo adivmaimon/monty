@@ -27,6 +27,9 @@
   const FOLDERS_SHOWN = 8;
   const openAreas = new Set();
   let allAreas = false;
+  // The plans beside a file: the newest few, the rest on request. A hot file has dozens.
+  const PLANS_SHOWN = 8;
+  let allPlans = false;
   // Plan documents and the agent's own setup (plan folders, CLAUDE.md, AGENTS.md): nearly
   // every plan touches them, so they would top every list and say nothing about the code.
   const isPlanDoc = (f) => /^(\.caddis|\.claude|\.kiro|\.specify|\.cursor|openspec)\//.test(f)
@@ -132,7 +135,7 @@ body.vscode-light .hist .h1{background:rgba(139,92,246,.25)}body.vscode-light .h
     }).join('') + (hot.length > FOLDERS_SHOWN ? `<button class="allf" data-hall>${allAreas ? 'Fewer folders' : `${hot.length - FOLDERS_SHOWN} more folders`}</button>` : '');
     const list = plansFor(sel, from);
     const guess = (via) => via === 'window' || via === 'dates';
-    const rows = list.map(([i, iso, via]) => {
+    const rows = (allPlans ? list : list.slice(0, PLANS_SHOWN)).map(([i, iso, via]) => {
       const s = data.specs[i] || { name: 'A plan' };
       const g = guess(via) ? '<span class="muted" title="Inferred: the commit touched a file the plan names, around the plan\'s dates. A guess.">~</span>' : '';
       const inner = `<span class="clamp1">${esc(s.name)}</span>${g}<span class="muted">${esc(when(s, iso))}</span>`;
@@ -148,7 +151,7 @@ body.vscode-light .hist .h1{background:rgba(139,92,246,.25)}body.vscode-light .h
       </div>
       <div class="hist-body"><div class="areas">${areas}</div>
         <aside class="hside"><span class="mono clamp1" title="${esc(sel)}">${esc(sel)}</span>
-          <span class="muted" style="font-size:12px">${n === 0 ? 'No plans changed this file' : n === 1 ? '1 plan' : n + ' plans'}</span>${rows}</aside></div>
+          <span class="muted" style="font-size:12px">${n === 0 ? 'No plans changed this file' : n === 1 ? '1 plan' : n + ' plans'}</span>${rows}${n > PLANS_SHOWN ? `<button class="more" data-hplans>${allPlans ? 'Show fewer' : `and ${n - PLANS_SHOWN} more`}</button>` : ''}</aside></div>
       ${anyGuess ? '<div class="note muted">~ inferred from the dates in a plan and the files it names, not from the commit itself: a guess.</div>' : ''}
     </div>`;
     if (html === lastHtml) return;
@@ -162,7 +165,9 @@ body.vscode-light .hist .h1{background:rgba(139,92,246,.25)}body.vscode-light .h
   }
 
   function wire() {
-    el.querySelectorAll('[data-hfile]').forEach((b) => (b.onclick = () => { sel = b.dataset.hfile; draw(); }));
+    el.querySelectorAll('[data-hfile]').forEach((b) => (b.onclick = () => { sel = b.dataset.hfile; allPlans = false; draw(); }));
+    const plans = el.querySelector('[data-hplans]');
+    if (plans) plans.onclick = () => { allPlans = !allPlans; draw(); };
     el.querySelectorAll('[data-hwin]').forEach((b) => (b.onclick = () => { win = b.dataset.hwin; draw(); }));
     el.querySelectorAll('[data-harea]').forEach((b) => (b.onclick = () => {
       const k = b.dataset.harea;
