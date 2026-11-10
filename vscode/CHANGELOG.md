@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.2
 
 - Menu bar alerts for a finished turn show Claude's last message instead of your prompt, so you can tell from the banner whether you are needed. Your prompt moves to the subtitle.
 
