@@ -31,6 +31,8 @@ struct Session: Decodable, Identifiable {
     var throughput: Throughput?
     var agent: String?
     var lastTurn: Turn?
+    /// Claude's last message of the turn. Older cores leave it out.
+    var lastReply: String?
 
     struct Todo: Decodable { var text: String; var status: String }
     struct Count: Decodable { var done: Int; var total: Int }

@@ -75,6 +75,8 @@ export interface Session {
   lastTest?: { ok: boolean; summary: string; time: string };
   /** The turn that just ended with a reply, while the session waits on you: how long it ran, when it ended. */
   lastTurn?: { ms: number; endedAt: string };
+  /** The agent's last message of that turn, collapsed and capped, for the banner. */
+  lastReply?: string;
   /** Started by a program, not typed by a person (see MontyState.scripted). */
   scripted?: boolean;
   /** The most recent edit that succeeded, for VS Code's follow mode. */

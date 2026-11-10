@@ -169,10 +169,13 @@ test('SessionModel from events alone: a tool call, a test run, tokens, end of tu
   assert.equal(m.snapshot(Date.parse('2026-10-23T10:05:00Z')).state, 'working', 'no permission guess when the tool does not ask');
   m.toolEnd('b', { text: 'Tests: 3 passed', isError: false }, '2026-10-23T10:00:03Z');
   m.usageFor('r1', t0, { in: 1000, out: 500, context: 40000 });
+  m.reply('Let me run the tests.');
+  m.reply('Fixed the login.\n\nShould I also  update the docs?');
   m.seen('2026-10-23T10:00:04Z');
   m.stop('end_turn');
   const s = m.snapshot(Date.parse('2026-10-23T10:00:05Z'));
   assert.equal(s.state, 'your_turn');
+  assert.equal(s.lastReply, 'Fixed the login. Should I also update the docs?', 'the last thing said, for the banner');
   assert.equal(s.stateReason, 'opencode has finished and awaits your reply');
   assert.equal(s.title, 'Fix the login');
   assert.deepEqual(s.touched.map((f) => [f.path, f.edits, f.plus]), [['src/a.ts', 1, 2]]);
@@ -183,6 +186,7 @@ test('SessionModel from events alone: a tool call, a test run, tokens, end of tu
   m.seen('2026-10-23T10:01:00Z');
   m.promptSent();
   assert.equal(m.snapshot(Date.parse('2026-10-23T10:01:01Z')).lastTurn, undefined, 'only while waiting on you');
+  assert.equal(m.snapshot(Date.parse('2026-10-23T10:01:01Z')).lastReply, undefined, 'a new prompt clears the old reply');
   m.interrupt();
   assert.equal(m.snapshot(Date.parse('2026-10-23T10:01:02Z')).lastTurn, undefined, 'you stopped it, so no "finished"');
 });

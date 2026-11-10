@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Menu bar alerts for a finished turn show Claude's last message instead of your prompt, so you can tell from the banner whether you are needed. Your prompt moves to the subtitle.
+
 ## 0.6.0
 
 - Plans per file lists, per folder, the files plans changed with how many, busiest first: a few per folder and the top folders, the rest behind a button. Unchanged files and plan and agent setup files (`.caddis/`, `CLAUDE.md`) stay off.

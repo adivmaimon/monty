@@ -159,7 +159,13 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             n.title = s.state == "done" ? "\(s.repo): all done" : "\(s.repo): your move"
             // Tests left red at the end of a turn are worth knowing before you switch back.
             let red = s.lastTest.map { $0.ok ? "" : " · \($0.summary)" } ?? ""
-            n.body = s.title + red
+            // What Claude said tells you whether you are needed; your own prompt does not.
+            if let reply = s.lastReply, !reply.isEmpty {
+                n.subtitle = s.title
+                n.body = reply + red
+            } else {
+                n.body = s.title + red
+            }
             n.sound = Notifier.ping
         }
         n.userInfo = ["repo": s.repoPath ?? s.cwd]

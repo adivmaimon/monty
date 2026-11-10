@@ -83,6 +83,8 @@ const TITLE_ORDER: TitleSource[] = ['tool', 'prompt', 'command', 'summary'];
 // A headline needs a few words: "yes", "commit", "looks good" are replies, not new work.
 const MIN_TITLE_WORDS = 3;
 const MIN_TITLE_CHARS = 12;
+/** A banner shows two or three lines; more is cut by macOS anyway, and it keeps the state small. */
+const REPLY_MAX = 240;
 
 export class SessionModel {
   readonly opts: SessionOptions;
@@ -137,6 +139,7 @@ export class SessionModel {
   /** The turn ended with such a job pending: the agent comes back on its own, by this time. */
   private resumesBy = 0;
   private lastTurn?: { ms: number; endedAt: string };
+  private lastReply?: string;
   private pending = new Map<string, Pending>();
   private sidechainPending = new Set<string>();
   private activity: Activity[] = [];
@@ -255,7 +258,17 @@ export class SessionModel {
     // Whatever was shown as finished is history now. Left set, it resurfaced as a fresh
     // "your move" banner the moment a later turn went quiet.
     this.lastTurn = undefined;
+    this.lastReply = undefined;
     if (fromPerson) this.promptAtMs = this.lastEventMs;
+  }
+
+  /**
+   * Text the agent wrote to you. The last one before the turn ends is its reply, which the
+   * "your move" banner shows: your own prompt says nothing about whether you are needed.
+   */
+  reply(text: string): void {
+    const t = text.replace(/\s+/g, ' ').trim();
+    if (t) this.lastReply = t.length > REPLY_MAX ? `${t.slice(0, REPLY_MAX - 1)}…` : t;
   }
 
   /** A background job reported back (its task notification names the call that launched it). */
@@ -452,6 +465,7 @@ export class SessionModel {
       subagentsRunning: Math.max(agents, this.sidechainPending.size > 0 ? 1 : 0),
       throughput: this.throughput(nowMs),
       lastTurn: state === 'your_turn' || state === 'done' ? this.lastTurn : undefined,
+      lastReply: state === 'your_turn' || state === 'done' ? this.lastReply : undefined,
       scripted: this.scripted || undefined,
     };
   }

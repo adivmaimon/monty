@@ -178,6 +178,7 @@ export class SessionTracker {
     // Real lines all carry the message's stop_reason; null is kept for older versions.
     m.stop(msg.stop_reason !== undefined && msg.stop_reason !== null ? String(msg.stop_reason) : null);
     for (const c of Array.isArray(msg.content) ? msg.content : []) {
+      if (c?.type === 'text' && typeof c.text === 'string') m.reply(c.text);
       if (c?.type !== 'tool_use') continue;
       const name = String(c.name ?? '');
       const input: Json = c.input && typeof c.input === 'object' ? c.input : {};
