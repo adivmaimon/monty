@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
 
 - Plans per file lists, per folder, the files plans changed with how many, busiest first: a few per folder and the top folders, the rest behind a button. Unchanged files and plan and agent setup files (`.caddis/`, `CLAUDE.md`) stay off.
 - Plans and the roadmap read left to right in the order work moves: Pending, Active, Done. The roadmap draws only the short links between neighbouring lanes until you pick a plan, so lines no longer cross over each other.
