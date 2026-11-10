@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Plans per file lists, per folder, the files plans changed with how many, busiest first: a few per folder and the top folders, the rest behind a button. Unchanged files and plan and agent setup files (`.caddis/`, `CLAUDE.md`) stay off.
 - Plans and the roadmap read left to right in the order work moves: Pending, Active, Done. The roadmap draws only the short links between neighbouring lanes until you pick a plan, so lines no longer cross over each other.
 - The footprint map stays readable on busy repos: folders with the plan's own files come first, and each shows only a few files changed outside the plan, with a button for the rest.
 - Specs can draw small charts and flows: write YAML in a `chart` or `flow` fenced block (GitHub shows it as plain YAML) and the readable view draws bars or steps. A block Monty can't read shows its source with one line saying why.

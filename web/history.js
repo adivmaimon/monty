@@ -1,6 +1,8 @@
 // Plans per file: the repo view of plan history (GET /api/history, src/history.ts).
-// Folders as boxes, each file a chip shaded by how many plans changed it in a time window;
-// click a chip for those plans, newest first, each opening in the readable view.
+// Folders as boxes, each listing the files plans changed in a time window, most plans
+// first; click a file for those plans, newest first, each opening in the readable view.
+// Unchanged files and the plan documents themselves stay off: on a real repo they are
+// hundreds of rows that say nothing.
 // Loaded before app.js, which calls MontyHistory.update() on each render in full mode.
 // Self-contained (own fetch, own styles) so it can sit beside other repo views.
 (function () {
@@ -19,21 +21,35 @@
   let ctx = { esc: (s) => String(s), vscode: null };
   let lastHtml = '';
   const pending = new Map();
+  // A folder shows its busiest files; the rest behind a button. Folders past FOLDERS_SHOWN
+  // likewise. Enough to read at a glance on a repo with thousands of files.
+  const FILES_SHOWN = 6;
+  const FOLDERS_SHOWN = 8;
+  const openAreas = new Set();
+  let allAreas = false;
+  // Plan documents and the agent's own setup (plan folders, CLAUDE.md, AGENTS.md): nearly
+  // every plan touches them, so they would top every list and say nothing about the code.
+  const isPlanDoc = (f) => /^(\.caddis|\.claude|\.kiro|\.specify|\.cursor|openspec)\//.test(f)
+    || (/\.md$/i.test(f) && /^specs\//.test(f))
+    || /^(claude|agents|gemini)\.md$/i.test(f);
 
   const style = document.createElement('style');
   style.textContent = `
 #history:empty{display:none}
 .hist .hist-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .hist .hist-h h2{margin:0}
-.hist .legend{display:flex;gap:2px;align-items:center;font-size:11px;color:var(--muted)}
-.hist .legend i{width:16px;height:8px;display:inline-block}
 .hist .hist-body{display:flex;gap:16px;align-items:flex-start}
 .hist .areas{flex:1;display:flex;flex-wrap:wrap;gap:6px;min-width:0}
 .hist .area{background:var(--card);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:150px}
 .hist .area>span{font-size:11.5px;color:var(--muted)}
-.hist .chips{display:flex;flex-wrap:wrap;gap:3px;align-content:flex-start}
-.hist .chips button{height:16px;border:0;padding:0;border-radius:3px;cursor:pointer}
-.hist .chips button[aria-current=true]{outline:2px solid var(--text);outline-offset:1px}
+.hist .files{display:flex;flex-direction:column;gap:1px}
+.hist .files button{display:flex;align-items:center;gap:8px;background:transparent;border:0;border-radius:5px;padding:3px 6px;margin:0 -6px;color:var(--soft);font:inherit;font-size:12px;text-align:left;cursor:pointer;min-width:0}
+.hist .files button:hover{background:var(--panel);color:var(--text)}
+.hist .files button[aria-current=true]{background:var(--panel);color:var(--text)}
+.hist .files .fn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist .files .n{flex:none;min-width:22px;text-align:center;border-radius:4px;padding:1px 5px;font-size:11px;color:var(--text)}
+.hist .h4.n{color:#121017}
+.hist .more,.hist .allf{background:transparent;border:0;padding:2px 0;color:var(--accent);font:inherit;font-size:11.5px;text-align:left;cursor:pointer;align-self:flex-start}
 .hist .h0{background:var(--track)}.hist .h1{background:#3b2f5c}.hist .h2{background:#5a45a0}.hist .h3{background:#8b5cf6}.hist .h4{background:#c4b5fd}
 body.vscode-light .hist .h1{background:rgba(139,92,246,.25)}body.vscode-light .hist .h2{background:rgba(139,92,246,.45)}body.vscode-light .hist .h3{background:rgba(139,92,246,.7)}body.vscode-light .hist .h4{background:#6d28d9}
 .hist .hside{width:260px;flex:0 0 auto;display:flex;flex-direction:column;gap:6px;min-width:0}
@@ -41,7 +57,6 @@ body.vscode-light .hist .h1{background:rgba(139,92,246,.25)}body.vscode-light .h
 .hist .hside .p:hover{color:var(--lilac)}
 .hist .hside .p span:first-child{flex:1;min-width:0}
 .hist .note{font-size:11px;margin-top:10px}
-.hist .more{font-size:11px;color:var(--muted)}
 @media (max-width:640px){.hist .hist-body{flex-direction:column}.hist .hside{width:100%}}`;
   document.head.appendChild(style);
 
@@ -77,10 +92,6 @@ body.vscode-light .hist .h1{background:rgba(139,92,246,.25)}body.vscode-light .h
     return ((data && data.files[file]) || []).filter((x) => Date.parse(x[1]) >= from);
   }
 
-  function chipWidth(size) {
-    // Bigger files read as wider chips; log scale so one huge file does not dominate.
-    return Math.round(10 + Math.min(46, 7 * Math.log2(1 + size / 400)));
-  }
 
   function when(spec, iso) {
     if (spec && spec.status === 'active') return 'active';
@@ -98,15 +109,27 @@ body.vscode-light .hist .h1{background:rgba(139,92,246,.25)}body.vscode-light .h
     }
     const from = cutoff();
     const counts = new Map();
-    for (const a of data.areas) for (const [f] of a.files) counts.set(f, plansFor(f, from).length);
-    if (!sel || !counts.has(sel)) sel = [...counts].sort((a, b) => b[1] - a[1])[0][0];
-    const chips = (a) => a.files.map(([f, size]) => {
-      const n = counts.get(f) || 0;
-      return `<button class="h${level(n)}" data-hfile="${esc(f)}" aria-current="${f === sel}" style="width:${chipWidth(size)}px" title="${esc(f)}: ${n === 1 ? '1 plan' : n + ' plans'}" aria-label="${esc(f)}"></button>`;
-    }).join('');
-    const areas = data.areas.map((a) => `<div class="area" style="flex:${Math.max(1, Math.sqrt(a.files.length)).toFixed(2)} 1 160px">
-      <span class="mono clamp1" title="${esc(a.name)}">${esc(a.name === '.' ? 'top level' : a.name)}</span>
-      <div class="chips">${chips(a)}</div>${a.more ? `<span class="more">and ${a.more} more</span>` : ''}</div>`).join('');
+    // Each folder's changed files in the window, most plans first.
+    const hot = data.areas.map((a) => {
+      const files = a.files.map(([f]) => [f, plansFor(f, from).length]).filter(([f, n]) => n > 0 && !isPlanDoc(f)).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
+      for (const [f, n] of files) counts.set(f, n);
+      return { name: a.name, files, sum: files.reduce((t, [, n]) => t + n, 0) };
+    }).filter((a) => a.files.length).sort((a, b) => b.sum - a.sum || a.name.localeCompare(b.name));
+    if (!hot.length) {
+      lastHtml = '';
+      el.innerHTML = `<div class="box hist"><div class="hist-h"><h2>Plans per file</h2><span class="spacer"></span>${winButtons()}</div><p class="muted" style="margin:0;font-size:12.5px">No plan changed a file in the last ${esc((WINDOWS.find((x) => x[0] === win) || [])[1])}.</p></div>`;
+      wire();
+      return;
+    }
+    if (!sel || !counts.has(sel)) sel = hot[0].files[0][0];
+    const shownAreas = allAreas ? hot : hot.slice(0, FOLDERS_SHOWN);
+    const areas = shownAreas.map((a) => {
+      const open = openAreas.has(a.name);
+      const files = open ? a.files : a.files.slice(0, FILES_SHOWN);
+      const rows = files.map(([f, n]) => `<button data-hfile="${esc(f)}" aria-current="${f === sel}" title="${esc(f)}"><span class="fn mono">${esc(f.split('/').pop())}</span><span class="n h${level(n)}" aria-label="${n === 1 ? '1 plan' : n + ' plans'}">${n}</span></button>`).join('');
+      const more = a.files.length > FILES_SHOWN ? `<button class="more" data-harea="${esc(a.name)}">${open ? 'Show fewer' : `and ${a.files.length - FILES_SHOWN} more`}</button>` : '';
+      return `<div class="area" style="flex:1 1 200px;max-width:340px"><span class="mono clamp1" title="${esc(a.name)}">${esc(a.name === '.' ? 'top level' : a.name)}</span><div class="files">${rows}</div>${more}</div>`;
+    }).join('') + (hot.length > FOLDERS_SHOWN ? `<button class="allf" data-hall>${allAreas ? 'Fewer folders' : `${hot.length - FOLDERS_SHOWN} more folders`}</button>` : '');
     const list = plansFor(sel, from);
     const guess = (via) => via === 'window' || via === 'dates';
     const rows = list.map(([i, iso, via]) => {
@@ -121,8 +144,7 @@ body.vscode-light .hist .h1{background:rgba(139,92,246,.25)}body.vscode-light .h
     const html = `<div class="box hist">
       <div class="hist-h"><h2>Plans per file</h2><span class="muted" style="font-size:12px">${win === 'all' ? `all ${data.commits} commits${data.truncated ? ' kept' : ''}` : 'last ' + esc(label)}</span>
         <span class="spacer"></span>
-        <div class="seg" role="group" aria-label="Time window">${WINDOWS.map(([k, t]) => `<button data-hwin="${k}" aria-pressed="${k === win}">${t}</button>`).join('')}</div>
-        <span class="legend"><span style="margin-right:4px">0</span>${[0, 1, 2, 3, 4].map((l) => `<i class="h${l}"></i>`).join('')}<span style="margin-left:4px">7+</span></span>
+        ${winButtons()}
       </div>
       <div class="hist-body"><div class="areas">${areas}</div>
         <aside class="hside"><span class="mono clamp1" title="${esc(sel)}">${esc(sel)}</span>
@@ -132,8 +154,23 @@ body.vscode-light .hist .h1{background:rgba(139,92,246,.25)}body.vscode-light .h
     if (html === lastHtml) return;
     lastHtml = html;
     el.innerHTML = html;
+    wire();
+  }
+
+  function winButtons() {
+    return `<div class="seg" role="group" aria-label="Time window">${WINDOWS.map(([k, t]) => `<button data-hwin="${k}" aria-pressed="${k === win}">${t}</button>`).join('')}</div>`;
+  }
+
+  function wire() {
     el.querySelectorAll('[data-hfile]').forEach((b) => (b.onclick = () => { sel = b.dataset.hfile; draw(); }));
     el.querySelectorAll('[data-hwin]').forEach((b) => (b.onclick = () => { win = b.dataset.hwin; draw(); }));
+    el.querySelectorAll('[data-harea]').forEach((b) => (b.onclick = () => {
+      const k = b.dataset.harea;
+      if (openAreas.has(k)) openAreas.delete(k); else openAreas.add(k);
+      draw();
+    }));
+    const all = el.querySelector('[data-hall]');
+    if (all) all.onclick = () => { allAreas = !allAreas; draw(); };
   }
 
   window.MontyHistory = {
