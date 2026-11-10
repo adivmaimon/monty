@@ -32,14 +32,19 @@ test('columns, lanes by depth inside a column, parked last in Next', () => {
   const cards = RM.pick([p('s', 'completed'), p('r', 'active', ['s']), p('g', 'pending', ['r']), p('a', 'pending', ['g']), p('b', 'parked')]);
   const L = RM.layout(cards);
   const n = (id: string) => L.nodes.get(id);
-  eq(L.cols.map((c: { label: string }) => c.label), ['Done', 'Active', 'Next']);
-  assert.ok(n('s').x < n('r').x && n('r').x < n('g').x);
-  // a needs g, both in Next: a sits a lane to the right.
-  assert.ok(n('a').x > n('g').x);
+  // Next, Active, Done left to right: the order work moves.
+  eq(L.cols.map((c: { label: string }) => c.label), ['Next', 'Active', 'Done']);
+  assert.ok(n('s').x > n('r').x && n('r').x > n('g').x);
+  // a needs g, both in Next: a sits a lane further from Active.
+  assert.ok(n('a').x < n('g').x);
+  // Column labels sit over their own cards.
+  eq(L.cols.map((c: { x: number }) => c.x), [n('a').x, n('r').x, n('s').x]);
   assert.equal(n('b').lane, n('g').lane);
   assert.ok(n('b').row > n('g').row);
   assert.equal(L.edges.length, 3);
   assert.equal(L.cycles.length, 0);
+  // Neighbouring lanes only: every line here is short and always drawn.
+  assert.ok(L.edges.every((e: { routed: boolean }) => !e.routed));
   // Forward lines are right angles: every segment horizontal or vertical.
   for (const e of L.edges) for (let i = 1; i < e.points.length; i++) {
     const [[x1, y1], [x2, y2]] = [e.points[i - 1], e.points[i]];
@@ -65,6 +70,8 @@ test('loops finish, are flagged, and are still drawn', () => {
   eq(two.cycles.map((g: string[]) => [...g].sort()), [['e', 'i']]);
   assert.equal(two.edges.length, 2);
   assert.ok(two.edges.every((e: { cycle: boolean }) => e.cycle));
+  // Loop lines route round cards, so they wait for a pick.
+  assert.ok(two.edges.every((e: { routed: boolean }) => e.routed));
   // A three-loop with a tail hanging off it, across columns.
   const three = RM.layout(RM.pick([p('a', 'active', ['c']), p('b', 'pending', ['a']), p('c', 'pending', ['b']), p('t', 'pending', ['c'])]));
   eq(three.cycles.map((g: string[]) => [...g].sort()), [['a', 'b', 'c']]);

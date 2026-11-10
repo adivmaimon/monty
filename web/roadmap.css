@@ -43,6 +43,7 @@ body.vscode.mode-roadmap{--bg:var(--vscode-editor-background,#121017)}
 .rdm-link:hover>.clamp1{text-decoration:underline}
 .rdm-open{align-self:flex-start;background:var(--accent-strong);color:#fff;border-radius:6px;padding:7px 14px;font-weight:600;font-size:13px;text-decoration:none;margin-top:4px}
 .rdm-empty{padding:40px 24px}
+.rdm-hint{font-size:12.5px}
 /* The way in: a quiet link beside a Plans heading or a plan's eyebrow. */
 .rdm-in{font-size:11px;letter-spacing:0;text-transform:none;font-weight:600;color:var(--accent);text-decoration:none;margin-left:8px}
 .rdm-in:hover{text-decoration:underline}

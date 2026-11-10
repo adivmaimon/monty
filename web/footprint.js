@@ -12,6 +12,12 @@
   let ctx = null; // the last side() call: { p, api, side, reader }
   let viewFile = null; // spec whose full view is open
   let sel = null; // selected file path in the full view
+  const opened = new Set(); // areas whose outside files are all shown
+  // A busy repo changes hundreds of files the plan never names. Each area shows its named
+  // files in full and only a few outside ones, so the plan's own work stays the picture.
+  const OUTSIDE_SHOWN = 6;
+  // Grey cells only hint at an area's size; past a dozen they are noise.
+  const PLAIN_SHOWN = 12;
 
   const base = (p) => p.split('/').pop();
   const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
@@ -121,6 +127,7 @@
   function open(file) {
     viewFile = file;
     sel = null;
+    opened.clear();
     renderView();
   }
   let sheet = null; // the footprint map's MontyOverlay sheet, made on first open
@@ -137,24 +144,47 @@
       sheet = window.MontyOverlay.create(close);
       sheet.addEventListener('click', (e) => {
         const cell = e.target.closest('[data-fp-cell]');
-        if (cell) { sel = cell.dataset.fpCell; renderView(); }
+        if (cell) { sel = cell.dataset.fpCell; renderView(); return; }
+        const more = e.target.closest('[data-fp-more]');
+        if (more) {
+          const k = more.dataset.fpMore;
+          if (opened.has(k)) opened.delete(k); else opened.add(k);
+          renderView();
+        }
       });
     }
     sheet.hidden = false;
-    const marked = d.areas.flatMap((a) => a.marked);
+    // Areas the plan names files in come first, then those with the most stray changes.
+    const named = (a) => a.marked.filter((f) => f.state !== 'outside').length;
+    const stray = (a) => a.marked.length - named(a);
+    const shownOf = (a) => {
+      const own = a.marked.filter((f) => f.state !== 'outside');
+      const out = a.marked.filter((f) => f.state === 'outside');
+      const cut = opened.has(a.name) ? out.length : OUTSIDE_SHOWN;
+      return { cells: [...own, ...out.slice(0, cut)], hiddenOut: Math.max(0, out.length - cut), out: out.length };
+    };
+    const list = [...d.areas].sort((a, b) => named(b) - named(a) || stray(b) - stray(a));
+    const marked = list.flatMap((a) => shownOf(a).cells);
     if (!sel || !marked.some((f) => f.path === sel)) {
       const pick = marked.find((f) => f.state === 'outside') || marked.find((f) => f.state === 'planned') || marked[0];
       sel = pick ? pick.path : null;
     }
     const cur = marked.find((f) => f.path === sel);
     const plainW = (p) => Math.max(26, Math.min(96, base(p).length * 6));
-    const areas = d.areas.map((a) => {
-      // Square root, so one big folder does not squeeze every other area to a sliver.
-      const grow = Math.sqrt(a.total).toFixed(2);
-      const cells = a.marked.map((f) => `<button class="fp-cell mono ${STATE[f.state][1]}${f.path === sel ? ' sel' : ''}" data-fp-cell="${esc(f.path)}" title="${esc(f.path)}" aria-label="${esc(f.path)}: ${esc(stateText(f, d))}">${esc(base(f.path))}</button>`).join('')
-        + a.plain.map((p) => `<span class="fp-cell fp-c-plain" style="width:${plainW(p)}px" title="${esc(p)}"></span>`).join('')
-        + (a.more ? `<span class="fp-more muted">+${a.more} files</span>` : '');
-      return `<div class="fp-area" style="flex:${grow} 1 ${Math.min(360, 140 + Math.sqrt(a.total) * 14)}px"><span class="fp-name mono">${esc(a.name)}</span><div class="fp-cells">${cells}</div></div>`;
+    const areas = list.map((a) => {
+      const vis = shownOf(a);
+      // Square root of what is drawn, so one big folder does not squeeze the rest to a sliver.
+      const grow = Math.sqrt(vis.cells.length + Math.min(a.plain.length, PLAIN_SHOWN) + 1).toFixed(2);
+      const plain = a.plain.slice(0, PLAIN_SHOWN);
+      const quiet = a.total - a.marked.length;
+      const toggle = vis.hiddenOut
+        ? `<button class="fp-more fp-toggle" data-fp-more="${esc(a.name)}">+${vis.hiddenOut} more changed outside</button>`
+        : opened.has(a.name) && vis.out > OUTSIDE_SHOWN ? `<button class="fp-more fp-toggle" data-fp-more="${esc(a.name)}">Show fewer</button>` : '';
+      const tally = [named(a) ? `${named(a)} in the ${noun(d)}` : '', vis.out ? `${vis.out} outside` : '', quiet ? `${quiet} unchanged` : ''].filter(Boolean).join(' · ');
+      const cells = vis.cells.map((f) => `<button class="fp-cell mono ${STATE[f.state][1]}${f.path === sel ? ' sel' : ''}" data-fp-cell="${esc(f.path)}" title="${esc(f.path)}" aria-label="${esc(f.path)}: ${esc(stateText(f, d))}">${esc(base(f.path))}</button>`).join('')
+        + toggle
+        + plain.map((p) => `<span class="fp-cell fp-c-plain" style="width:${plainW(p)}px" title="${esc(p)}"></span>`).join('');
+      return `<div class="fp-area" style="flex:${grow} 1 ${Math.min(360, 160 + Math.sqrt(vis.cells.length) * 24)}px"><div class="fp-head"><span class="fp-name mono">${esc(a.name)}</span><span class="fp-tally muted">${esc(tally)}</span></div><div class="fp-cells">${cells}</div></div>`;
     }).join('');
     const abs = cur ? d.repoPath + '/' + cur.path : '';
     const legend = `<span class="fp-key" data-tip="A file the ${noun(d)} names that has changed since it was written."><span class="fp-sw fp-c-changed"></span>changed</span>

@@ -19,7 +19,11 @@ button.fp-cell{cursor:pointer}
 .fp-c-planned{background:transparent;border:1.5px dashed var(--accent);color:var(--lilac)}
 .fp-c-outside{background:var(--orchid);color:#121017}
 .fp-c-changed-t{color:var(--lilac)}.fp-c-planned-t{color:var(--muted)}.fp-c-outside-t{color:var(--orchid)}
+.fp-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;min-width:0}
+.fp-tally{font-size:11px;white-space:nowrap}
 .fp-more{font-size:11px;align-self:center;padding:0 4px}
+.fp-toggle{height:24px;background:transparent;border:1px solid var(--line);border-radius:4px;color:var(--orchid);cursor:pointer;padding:0 8px}
+.fp-toggle:hover{border-color:var(--orchid)}
 .fp-aside{flex:1 1 260px;max-width:340px;display:flex;flex-direction:column;gap:20px;min-width:0}
 .fp-detail,.fp-prog{display:flex;flex-direction:column;gap:6px;font-size:13px;min-width:0}
 .fp-path{font-size:13px;word-break:break-all}

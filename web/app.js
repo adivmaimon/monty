@@ -423,7 +423,8 @@
         ${more ? `<button class="group-h" data-group="${label}" aria-expanded="${opened}"><span>${label} · ${items.length}</span></button>` : `<div class="group-h static"><span>${label} · 1</span></div>`}
         ${(opened ? items : items.slice(0, 1)).map(planRow).join('')}</div>`;
     };
-    const html = group('Active', active, true) + group('Pending', pending, active.length < 3) + group('Parked', parked, false) + group('Recently done', finished, false);
+    // Left to right in the order work moves: planned, under way, done. Parked sits off the line, at the end.
+    const html = group('Pending', pending, active.length < 3) + group('Active', active, true) + group('Recently done', finished, false) + group('Parked', parked, false);
     const rmFor = scope ? base(scope) : pick || (new Set(projects.map((p) => p.repo)).size === 1 ? projects[0].repo : '');
     $('plans').innerHTML = projects.length ? `<div class="box"><h2>Plans${roadmapIn(rmFor)}</h2><div class="board">${html}</div></div>` : (scope ? '' : '<div class="empty">No plans about. How restful.</div>');
     $('plans').querySelectorAll('[data-group]').forEach((b) => (b.onclick = () => {

@@ -1,6 +1,11 @@
-// The roadmap: every plan or spec in one repo as a card in Done, Active and Next, with
-// right-angled lines for what needs what (Project.dependsOn, from src/deps.ts). Click a
-// card and it, everything it needs and everything it unblocks stay lit.
+// The roadmap: every plan or spec in one repo as a card in Next, Active and Done, left to
+// right in the order work moves, with right-angled lines for what needs what
+// (Project.dependsOn, from src/deps.ts). Click a card and it, everything it needs and
+// everything it unblocks stay lit.
+//
+// Only the short lines between neighbouring lanes are drawn all the time. Lines that have
+// to route round cards (skipping lanes, inside a lane, backwards, loops) show only for the
+// picked card's chain: drawn together they cross each other and the board stops reading.
 //
 // The layout is hand-written rather than a library (no build step, no dependency): each
 // column splits into lanes by dependency depth, cards in a lane are ordered by the
@@ -206,17 +211,20 @@
           points = [[a.x + W, a.y + H / 2], [side, a.y + H / 2], [side, b.y + H / 2], [b.x + W, b.y + H / 2]];
         } else points = [[a.x + W / 2 + off, a.y + H], [a.x + W / 2 + off, low], [b.x + W / 2 - off, low], [b.x + W / 2 - off, b.y + H]];
       }
-      edges.push({ from: d, to: c.id, cycle, back: !(a.lane < b.lane), points });
+      edges.push({ from: d, to: c.id, cycle, back: !(a.lane < b.lane), routed: cycle || b.lane - a.lane !== 1, points });
     }
     const rows = Math.max(0, ...lanes.map((l) => l.length));
-    return {
-      nodes,
-      edges,
-      cycles,
-      cols,
-      width: Math.max(W, lanes.length * (W + GAP) - GAP),
-      height: HEAD + rows * ROW,
-    };
+    const width = Math.max(W, lanes.length * (W + GAP) - GAP);
+    // Laid out Done-first (dependencies flow left to right, which keeps the routing above
+    // simple), then mirrored so the board reads Next, Active, Done.
+    for (const n of nodes.values()) n.x = width - W - n.x;
+    for (const e of edges) e.points = e.points.map(([x, y]) => [width - x, y]);
+    for (const c of cols) {
+      const xs = [...nodes.values()].filter((n) => byId.get(n.id).col === c.col).map((n) => n.x);
+      c.x = Math.min(...xs);
+    }
+    cols.sort((a, b) => a.x - b.x);
+    return { nodes, edges, cycles, cols, width, height: HEAD + rows * ROW };
   }
 
   /** The card, everything it needs (all the way down) and everything it unblocks (all the way up). */
@@ -295,7 +303,7 @@
     const head = window.MontyOverlay.bar({
       kind: 'Roadmap',
       title: `${opts.repo || ''} · ${cards.length} plan${cards.length === 1 ? '' : 's'}`,
-      sub: 'Every plan in this repo, in Done, Active and Next, with a line from each plan to the ones it waits on. Click a plan to light up its chain.',
+      sub: 'Every plan in this repo, in Next, Active and Done, with a line from each plan to the ones it waits on. Click a plan to light up its chain.',
       controls: opts.repos && opts.repos.length > 1 ? `<label class="filter">Repo <select data-rm-repo>${opts.repos.map((r) => `<option ${r === opts.repo ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></label>` : '',
       closable: !!opts.back,
     });
@@ -306,8 +314,10 @@
 
     const path = (pts) => 'M' + pts.map(([x, y]) => `${x} ${y}`).join(' L');
     const isLit = (e) => !lit || (lit.has(e.from) && lit.has(e.to));
-    // Lit lines go last so they draw over the dim ones.
-    const edges = [...L.edges].sort((a, b) => isLit(a) - isLit(b));
+    // Routed lines only for the picked chain (see the top of the file). Lit lines go last
+    // so they draw over the dim ones.
+    const edges = L.edges.filter((e) => !e.routed || (sel && isLit(e))).sort((a, b) => isLit(a) - isLit(b));
+    const hidden = L.edges.some((e) => e.routed) && !sel;
     const svg = `<svg class="rdm-lines" width="${L.width}" height="${L.height}" aria-hidden="true">
       <defs><marker id="rdm-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z"/></marker></defs>
       ${edges.map((e) => `<path d="${path(e.points)}" class="${e.cycle ? 'cycle' : ''} ${sel && isLit(e) ? 'lit' : ''} ${lit && !isLit(e) ? 'dim' : ''}" ${e.back || e.cycle ? 'marker-end="url(#rdm-arrow)"' : ''}/>`).join('')}
@@ -325,7 +335,7 @@
     }).join('');
 
     paint(el, `${head}<div class="rdm-body">
-      <div class="rdm-main">${loopNote}<div class="rdm-scroll"><div class="rdm-board" style="width:${L.width}px;height:${L.height}px">${labels}${svg}${cardsHtml}</div></div></div>
+      <div class="rdm-main">${loopNote}${hidden ? '<div class="rdm-hint muted">Longer links between plans show when you pick one.</div>' : ''}<div class="rdm-scroll"><div class="rdm-board" style="width:${L.width}px;height:${L.height}px">${labels}${svg}${cardsHtml}</div></div></div>
       <aside class="rdm-side">${side(sel && byId.get(sel), cards, byId, L)}</aside>
     </div>`);
   }

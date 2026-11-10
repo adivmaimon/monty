@@ -181,7 +181,7 @@
 .rm-lastrun{font-size:12.5px}.rm-lastrun.ok{color:var(--ok)}.rm-lastrun.bad{color:var(--rose)}
 
 /* GitHub callouts (md.js) */
-.callout{border-radius:8px;padding:10px 14px;margin:8px 0;background:var(--peri-soft);border-left:3px solid var(--peri)}
+.callout{border-radius:8px;padding:10px 14px;margin:8px 0;background:var(--peri-soft)}
 .callout>p{margin:4px 0}
 .callout-t{font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--peri)}
 .callout-tip{background:var(--ok-soft);border-color:var(--ok)}.callout-tip .callout-t{color:var(--ok)}

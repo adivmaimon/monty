@@ -8,9 +8,10 @@
 .chgbar .chg-seen{background:var(--line);border:0;color:var(--text);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;white-space:nowrap}
 .chgbar .chg-seen:hover{background:var(--card)}
 
-/* The gutter mark: a bar down the left edge of a changed section or header. */
-.sec.chg,.rm-sec.chg{border-left:3px solid var(--orchid);padding-left:12px}
-.hero.chg,.rm-head.chg{border-left:3px solid var(--orchid);padding-left:14px}
+/* A changed card gets an orchid outline all round; a changed bare section a faint orchid
+   wash, spread past its edges with a shadow so nothing moves. No side bars. */
+.sec.chg,.hero.chg,.rm-head.chg .hero{border-color:color-mix(in srgb,var(--orchid) 55%,var(--line))}
+.rm-sec.chg{--chg-wash:color-mix(in srgb,var(--orchid) 7%,transparent);background:var(--chg-wash);box-shadow:0 0 0 12px var(--chg-wash);border-radius:2px}
 .chg-cur{outline:1px solid var(--orchid);outline-offset:3px}
 
 .chg-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--orchid);margin-left:8px;vertical-align:middle;flex:0 0 auto}
@@ -25,4 +26,4 @@
 .chg-add{background:var(--ok-soft);border-radius:3px;color:var(--text)}
 tr.chg-add td{background:var(--ok-soft)}
 
-.chg-removed{font-size:13px;color:var(--muted);padding:10px 16px;border:1px dashed var(--line);border-left:3px solid var(--orchid);border-radius:10px}
+.chg-removed{font-size:13px;color:var(--muted);padding:10px 16px;border:1px dashed color-mix(in srgb,var(--orchid) 45%,var(--line));border-radius:10px}
